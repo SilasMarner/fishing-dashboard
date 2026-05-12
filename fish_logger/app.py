@@ -24,11 +24,13 @@ app = Flask(__name__)
 
 DB_PATH          = os.environ.get("DB_PATH", "/data/fish_log.db")
 PROMETHEUS_URL   = os.environ.get("PROMETHEUS_URL", "http://prometheus:9090")
-# ANTHROPIC_KEY  = os.environ.get("ANTHROPIC_API_KEY", "")   # ── uncomment to use Claude instead
-# GEMINI_KEY     = os.environ.get("GEMINI_API_KEY", "")      # ── uncomment to use Gemini instead
 GROQ_KEY         = os.environ.get("GROQ_API_KEY", "")
+XAI_KEY          = os.environ.get("XAI_API_KEY", "")
+AI_PROVIDER      = os.environ.get("AI_PROVIDER", "groq").lower()  # "groq" or "xai"
 ANALYSIS_HOURS   = int(os.environ.get("ANALYSIS_INTERVAL_HOURS", "6"))
 PORT             = int(os.environ.get("PORT", "9879"))
+# ANTHROPIC_KEY  = os.environ.get("ANTHROPIC_API_KEY", "")   # ── uncomment to use Claude instead
+# GEMINI_KEY     = os.environ.get("GEMINI_API_KEY", "")      # ── uncomment to use Gemini instead
 
 # ── Species by location ────────────────────────────────────────────────────────
 SPECIES = {
@@ -292,7 +294,9 @@ TREND_LABEL = {"-1.0": "falling", "-1": "falling", "0.0": "steady", "0": "steady
                "1.0": "rising", "1": "rising"}
 
 def run_ai_analysis(location: str) -> str:
-    if not GROQ_KEY:
+    if AI_PROVIDER == "xai" and not XAI_KEY:
+        return "AI analysis unavailable — XAI_API_KEY not set."
+    if AI_PROVIDER != "xai" and not GROQ_KEY:
         return "AI analysis unavailable — GROQ_API_KEY not set."
 
     with sqlite3.connect(DB_PATH) as conn:
@@ -355,10 +359,18 @@ Be specific and data-driven. Note sample sizes. Keep it practical — this will 
 Data:
 {json.dumps(entries, indent=2)}"""
 
-    # ── Groq (default) — fast free-tier inference via groq.com ────────────────
-    client = OpenAI(api_key=GROQ_KEY, base_url="https://api.groq.com/openai/v1")
+    # ── Provider selection — set AI_PROVIDER in .env to switch ───────────────
+    if AI_PROVIDER == "xai":
+        # xAI / Grok — https://console.x.ai  (set XAI_API_KEY in .env)
+        client = OpenAI(api_key=XAI_KEY, base_url="https://api.x.ai/v1")
+        model  = "grok-3-mini"
+    else:
+        # Groq (default) — https://console.groq.com  (set GROQ_API_KEY in .env)
+        client = OpenAI(api_key=GROQ_KEY, base_url="https://api.groq.com/openai/v1")
+        model  = "llama-3.3-70b-versatile"
+
     completion = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model=model,
         max_tokens=3000,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -367,8 +379,8 @@ Data:
     # ── Gemini / Google (alternative) ─────────────────────────────────────────
     # To switch to Gemini:
     #   1. pip install google-genai>=1.0
-    #   2. set GEMINI_API_KEY in your .env  (https://aistudio.google.com — use AI Studio for free tier)
-    #   3. uncomment the block below and comment out the Grok block above
+    #   2. set GEMINI_API_KEY in .env  (use https://aistudio.google.com for free tier)
+    #   3. uncomment below; comment out the provider-selection block above
     #
     # from google import genai as _genai
     # _client = _genai.Client(api_key=os.environ["GEMINI_API_KEY"])
@@ -378,8 +390,8 @@ Data:
     # ── Anthropic / Claude (alternative) ──────────────────────────────────────
     # To switch to Claude:
     #   1. pip install anthropic>=0.40
-    #   2. set ANTHROPIC_API_KEY in your .env  (https://console.anthropic.com)
-    #   3. uncomment the block below and comment out the Grok block above
+    #   2. set ANTHROPIC_API_KEY in .env  (https://console.anthropic.com)
+    #   3. uncomment below; comment out the provider-selection block above
     #
     # from anthropic import Anthropic as _Anthropic
     # _ac = _Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
@@ -387,7 +399,8 @@ Data:
     #                            messages=[{"role": "user", "content": prompt}])
     # return _msg.content[0].text
 
-def save_analysis(location: str, content: str, model: str = "llama-3.3-70b-versatile"):
+def save_analysis(location: str, content: str,
+                  model: str = "grok-3-mini" if os.environ.get("AI_PROVIDER","groq")=="xai" else "llama-3.3-70b-versatile"):
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
             "INSERT INTO ai_analysis (location, analysis_type, content, model) VALUES (?,?,?,?)",
@@ -603,8 +616,11 @@ def datetimeformat(ts):
 
 if __name__ == "__main__":
     init_db()
-    if GROQ_KEY:
+    active_key = XAI_KEY if AI_PROVIDER == "xai" else GROQ_KEY
+    active_var = "XAI_API_KEY" if AI_PROVIDER == "xai" else "GROQ_API_KEY"
+    if active_key:
+        log.info("AI analysis provider: %s", AI_PROVIDER)
         threading.Thread(target=analysis_scheduler, daemon=True).start()
     else:
-        log.warning("GROQ_API_KEY not set — AI analysis disabled")
+        log.warning("%s not set — AI analysis disabled", active_var)
     app.run(host="0.0.0.0", port=PORT)
