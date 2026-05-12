@@ -6,25 +6,47 @@ A self-hosted fishing intelligence stack that combines real-time NOAA tide predi
 
 ## Screenshots
 
-### Tide Chart Panel — live tides, weather, solunar windows, fishing score
-![Grafana Tide Panel](docs/screenshots/grafana_tide_panel.png)
-
-Shows all 5 locations (Freeport TX, N Padre Island TX, Pensacola FL, Sargent TX, Matagorda TX), a date picker for historical dates, the current weather strip with barometer, today's fishing score, and a 24-hour tide curve with solunar major/minor windows, sunrise/sunset, and a "NOW" marker.
-
-### Full Grafana Dashboard — stat panels, tide events, solunar windows
-![Grafana Dashboard](docs/screenshots/grafana_dashboard.png)
-
-The Freeport TX section shows fishing score gauge, current water level, moon phase, today's tide events table, and major/minor solunar windows. Each location has its own collapsible row.
-
 ### Catch Log Form — embedded in Grafana
 ![Embed Log Form](docs/screenshots/embed_log_form.png)
 
-Location buttons, species dropdown (location-specific), Caught/Skunked toggle, optional size/weight/notes fields, and a recent entries table with per-row and bulk-select delete.
+Location buttons, species dropdown (49+ species per Texas location, 59 for Pensacola including full shark variety), Caught/Skunked toggle, optional size/weight/notes fields, and a recent entries table with per-row and bulk-select delete.
 
 ### Catch History — full conditions snapshot per entry
-![Catch History](docs/screenshots/fish_logger_history.png)
 
-Every logged catch saves a full snapshot of conditions at that moment: pressure, trend, tide height, solunar period, fishing score, wind, and more.
+| Freeport TX | Padre Island TX |
+|---|---|
+| ![History Freeport](docs/screenshots/history_freeport_tx.png) | ![History Padre Island](docs/screenshots/history_padre_island_tx.png) |
+
+| Pensacola FL | Sargent TX |
+|---|---|
+| ![History Pensacola](docs/screenshots/history_pensacola_fl.png) | ![History Sargent](docs/screenshots/history_sargent_tx.png) |
+
+Every logged catch saves a full conditions snapshot at that moment: pressure + trend, tide height, solunar period, fishing score, wind, temperature, and more.
+
+### Dashboard — Log Form by Location
+
+| Freeport TX | Padre Island TX | Pensacola FL |
+|---|---|---|
+| ![Dashboard Freeport](docs/screenshots/dashboard_freeport_tx.png) | ![Dashboard Padre](docs/screenshots/dashboard_padre_island_tx.png) | ![Dashboard Pensacola](docs/screenshots/dashboard_pensacola_fl.png) |
+
+### AI Analysis — Groq (Llama 3.3 70B)
+
+Analysis runs automatically every 6 hours across all 5 locations. Correlates pressure trends, tide stages, solunar windows, wind, and temperature against catch history to produce a data-driven fishing report.
+
+| Freeport TX | Pensacola FL |
+|---|---|
+| ![Analysis Freeport](docs/screenshots/analysis_freeport_tx.png) | ![Analysis Pensacola](docs/screenshots/analysis_pensacola_fl.png) |
+
+| Padre Island TX | Sargent TX | Matagorda TX |
+|---|---|---|
+| ![Analysis Padre](docs/screenshots/analysis_padre_island_tx.png) | ![Analysis Sargent](docs/screenshots/analysis_sargent_tx.png) | ![Analysis Matagorda](docs/screenshots/analysis_matagorda_tx.png) |
+
+### Grafana — Tide Chart and Dashboard
+| Tide Panel | Full Dashboard |
+|---|---|
+| ![Grafana Tide Panel](docs/screenshots/grafana_tide_panel.png) | ![Grafana Dashboard](docs/screenshots/grafana_dashboard.png) |
+
+Live tides, weather, solunar windows, fishing score gauge, moon phase, and tide events table — one collapsible row per location.
 
 ---
 
@@ -61,7 +83,7 @@ Docker (docker-compose)
 | Docker + Docker Compose | v2.x+ |
 | Python 3.11+ | For the host-side exporter |
 | `pip install prometheus_client requests ephem` | Exporter dependencies |
-| Anthropic API key | For AI catch analysis — get one at [console.anthropic.com](https://console.anthropic.com) |
+| Groq API key | For AI catch analysis (free) — get one at [console.groq.com](https://console.groq.com) |
 | Grafana plugin `frser-sqlite-datasource` | Auto-installed via `GF_INSTALL_PLUGINS` env var |
 
 ---
@@ -225,7 +247,9 @@ The dashboard uses two Grafana plugins:
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `ANTHROPIC_API_KEY` | Yes (for AI) | — | Anthropic API key |
+| `GROQ_API_KEY` | Yes (for AI) | — | Groq API key — free at [console.groq.com](https://console.groq.com) |
+| `XAI_API_KEY` | No | — | xAI/Grok API key (alternative) — [console.x.ai](https://console.x.ai) |
+| `AI_PROVIDER` | No | `groq` | AI provider: `groq` or `xai` |
 | `GRAFANA_ADMIN_PASSWORD` | Yes | — | Grafana admin password (≥8 chars) |
 | `GRAFANA_ADMIN_USER` | No | `admin` | Grafana admin username |
 | `FISHING_DATA_DIR` | No | `./data` | Directory for fish_log.db |
@@ -276,8 +300,8 @@ docker exec grafana ls /fishing/
 ### AI analysis not generating
 
 ```bash
-docker logs fish-logger | grep -i "anthropic\|analysis\|error"
+docker logs fish-logger | grep -i "groq\|analysis\|error"
 curl -s http://localhost:9879/api/conditions/freeport_tx  # verify app is reachable
 ```
 
-Make sure `ANTHROPIC_API_KEY` is set and valid. The scheduler waits 90 s after startup before the first run.
+Make sure `GROQ_API_KEY` (or `XAI_API_KEY` if using `AI_PROVIDER=xai`) is set and valid. The scheduler waits 90 s after startup before the first run.
