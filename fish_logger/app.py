@@ -11,7 +11,8 @@ import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-import anthropic
+# import anthropic          # ── Anthropic/Claude (commented out; see run_ai_analysis below)
+import google.generativeai as genai
 import requests
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 
@@ -22,7 +23,8 @@ app = Flask(__name__)
 
 DB_PATH          = os.environ.get("DB_PATH", "/data/fish_log.db")
 PROMETHEUS_URL   = os.environ.get("PROMETHEUS_URL", "http://prometheus:9090")
-ANTHROPIC_KEY    = os.environ.get("ANTHROPIC_API_KEY", "")
+# ANTHROPIC_KEY  = os.environ.get("ANTHROPIC_API_KEY", "")   # ── uncomment to use Claude instead
+GEMINI_KEY       = os.environ.get("GEMINI_API_KEY", "")
 ANALYSIS_HOURS   = int(os.environ.get("ANALYSIS_INTERVAL_HOURS", "6"))
 PORT             = int(os.environ.get("PORT", "9879"))
 
@@ -212,8 +214,8 @@ TREND_LABEL = {"-1.0": "falling", "-1": "falling", "0.0": "steady", "0": "steady
                "1.0": "rising", "1": "rising"}
 
 def run_ai_analysis(location: str) -> str:
-    if not ANTHROPIC_KEY:
-        return "AI analysis unavailable — ANTHROPIC_API_KEY not set."
+    if not GEMINI_KEY:
+        return "AI analysis unavailable — GEMINI_API_KEY not set."
 
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
@@ -275,15 +277,28 @@ Be specific and data-driven. Note sample sizes. Keep it practical — this will 
 Data:
 {json.dumps(entries, indent=2)}"""
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
-    msg = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=3000,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return msg.content[0].text
+    # ── Gemini (default) ───────────────────────────────────────────────────────
+    genai.configure(api_key=GEMINI_KEY)
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    response = model.generate_content(prompt)
+    return response.text
 
-def save_analysis(location: str, content: str, model: str = "claude-sonnet-4-6"):
+    # ── Anthropic / Claude (alternative) ──────────────────────────────────────
+    # To switch back to Claude:
+    #   1. pip install anthropic>=0.40
+    #   2. set ANTHROPIC_API_KEY in your .env  (https://console.anthropic.com)
+    #   3. uncomment the block below and comment out the Gemini block above
+    #
+    # import anthropic
+    # client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    # msg = client.messages.create(
+    #     model="claude-sonnet-4-6",
+    #     max_tokens=3000,
+    #     messages=[{"role": "user", "content": prompt}],
+    # )
+    # return msg.content[0].text
+
+def save_analysis(location: str, content: str, model: str = "gemini-1.5-flash"):
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
             "INSERT INTO ai_analysis (location, analysis_type, content, model) VALUES (?,?,?,?)",
@@ -499,8 +514,8 @@ def datetimeformat(ts):
 
 if __name__ == "__main__":
     init_db()
-    if ANTHROPIC_KEY:
+    if GEMINI_KEY:
         threading.Thread(target=analysis_scheduler, daemon=True).start()
     else:
-        log.warning("ANTHROPIC_API_KEY not set — AI analysis disabled")
+        log.warning("GEMINI_API_KEY not set — AI analysis disabled")
     app.run(host="0.0.0.0", port=PORT)
