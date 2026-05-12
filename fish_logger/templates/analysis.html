@@ -24,12 +24,8 @@
         <i class="bi bi-clock"></i> Generated: {{ latest['generated_at']|int | datetimeformat }}
         &nbsp;|&nbsp; Model: {{ latest['model'] }}
       </div>
-      <div id="analysisContent" class="analysis-body"></div>
-      <script>
-        // Render Markdown safely
-        const raw = {{ latest['content'] | tojson }};
-        document.getElementById('analysisContent').innerHTML = markdownToHtml(raw);
-      </script>
+      <div id="analysisContent" class="analysis-body"
+           data-raw="{{ latest['content'] | e }}"></div>
     {% else %}
       <div class="text-center text-muted py-5">
         <i class="bi bi-robot" style="font-size:3rem"></i>
@@ -91,5 +87,13 @@ async function triggerAnalysis() {
     if (content) content.style.display = '';
   }
 }
+
+// Render analysis content now that markdownToHtml is defined
+(function() {
+  const el = document.getElementById('analysisContent');
+  if (el && el.dataset.raw) {
+    el.innerHTML = markdownToHtml(el.dataset.raw);
+  }
+})();
 </script>
 {% endblock %}

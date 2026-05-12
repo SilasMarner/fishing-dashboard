@@ -4,6 +4,30 @@ A self-hosted fishing intelligence stack that combines real-time NOAA tide predi
 
 ---
 
+## Screenshots
+
+### Tide Chart Panel — live tides, weather, solunar windows, fishing score
+![Grafana Tide Panel](docs/screenshots/grafana_tide_panel.png)
+
+Shows all 5 locations (Freeport TX, N Padre Island TX, Pensacola FL, Sargent TX, Matagorda TX), a date picker for historical dates, the current weather strip with barometer, today's fishing score, and a 24-hour tide curve with solunar major/minor windows, sunrise/sunset, and a "NOW" marker.
+
+### Full Grafana Dashboard — stat panels, tide events, solunar windows
+![Grafana Dashboard](docs/screenshots/grafana_dashboard.png)
+
+The Freeport TX section shows fishing score gauge, current water level, moon phase, today's tide events table, and major/minor solunar windows. Each location has its own collapsible row.
+
+### Catch Log Form — embedded in Grafana
+![Embed Log Form](docs/screenshots/embed_log_form.png)
+
+Location buttons, species dropdown (location-specific), Caught/Skunked toggle, optional size/weight/notes fields, and a recent entries table with per-row and bulk-select delete.
+
+### Catch History — full conditions snapshot per entry
+![Catch History](docs/screenshots/fish_logger_history.png)
+
+Every logged catch saves a full snapshot of conditions at that moment: pressure, trend, tide height, solunar period, fishing score, wind, and more.
+
+---
+
 ## Architecture
 
 ```
