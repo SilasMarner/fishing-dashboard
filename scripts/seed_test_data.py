@@ -19,9 +19,13 @@ import os
 import random
 import sqlite3
 from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
-DB = os.environ.get("DB_PATH", "./data/fish_log.db")
+# Always resolve DB relative to the repo root (one level above scripts/)
+# so the script works whether run from repo root, scripts/, or anywhere else.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+DB = os.environ.get("DB_PATH", str(_REPO_ROOT / "data" / "fish_log.db"))
 TZ = ZoneInfo("America/Chicago")
 
 # ── Schema ─────────────────────────────────────────────────────────────────────
@@ -236,6 +240,9 @@ def main():
         ))
 
     with sqlite3.connect(DB) as conn:
+        # Wipe previous seed data and stale AI entries before inserting
+        conn.execute("DELETE FROM fish_log")
+        conn.execute("DELETE FROM ai_analysis")
         conn.executemany("""
             INSERT INTO fish_log
               (logged_at, location, species, caught, fish_count, size_in, weight_lbs, notes,
@@ -244,18 +251,10 @@ def main():
                solunar_period, moon_phase_pct, fishing_score)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, rows)
-
-        # Remove stale/error AI analysis entries so the next Run Now starts clean
-        deleted = conn.execute(
-            "DELETE FROM ai_analysis WHERE content LIKE '%unavailable%' OR content LIKE '%not set%'"
-        ).rowcount
         conn.commit()
-
         total = conn.execute("SELECT COUNT(*) FROM fish_log").fetchone()[0]
 
     print(f"Inserted {len(rows)} test entries  |  fish_log total: {total} rows")
-    if deleted:
-        print(f"Removed {deleted} stale AI analysis error entries")
     print(f"\nDatabase: {os.path.abspath(DB)}")
     print("\nNext step: open the Analysis tab and click 'Run Now' for each location.")
 
