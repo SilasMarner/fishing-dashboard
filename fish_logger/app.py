@@ -12,7 +12,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 # import anthropic          # ── Anthropic/Claude (commented out; see run_ai_analysis below)
-import google.generativeai as genai
+from google import genai
 import requests
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 
@@ -354,9 +354,11 @@ Data:
 {json.dumps(entries, indent=2)}"""
 
     # ── Gemini (default) ───────────────────────────────────────────────────────
-    genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    response = model.generate_content(prompt)
+    client = genai.Client(api_key=GEMINI_KEY)
+    response = client.models.generate_content(
+        model="gemini-2.0-flash-lite",
+        contents=prompt,
+    )
     return response.text
 
     # ── Anthropic / Claude (alternative) ──────────────────────────────────────
