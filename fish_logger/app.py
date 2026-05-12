@@ -12,7 +12,8 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 # import anthropic          # ── Anthropic/Claude (commented out; see run_ai_analysis below)
-from google import genai
+# from google import genai  # ── Gemini (commented out; see run_ai_analysis below)
+from openai import OpenAI
 import requests
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 
@@ -24,7 +25,8 @@ app = Flask(__name__)
 DB_PATH          = os.environ.get("DB_PATH", "/data/fish_log.db")
 PROMETHEUS_URL   = os.environ.get("PROMETHEUS_URL", "http://prometheus:9090")
 # ANTHROPIC_KEY  = os.environ.get("ANTHROPIC_API_KEY", "")   # ── uncomment to use Claude instead
-GEMINI_KEY       = os.environ.get("GEMINI_API_KEY", "")
+# GEMINI_KEY     = os.environ.get("GEMINI_API_KEY", "")      # ── uncomment to use Gemini instead
+GROQ_KEY         = os.environ.get("GROQ_API_KEY", "")
 ANALYSIS_HOURS   = int(os.environ.get("ANALYSIS_INTERVAL_HOURS", "6"))
 PORT             = int(os.environ.get("PORT", "9879"))
 
@@ -290,8 +292,8 @@ TREND_LABEL = {"-1.0": "falling", "-1": "falling", "0.0": "steady", "0": "steady
                "1.0": "rising", "1": "rising"}
 
 def run_ai_analysis(location: str) -> str:
-    if not GEMINI_KEY:
-        return "AI analysis unavailable — GEMINI_API_KEY not set."
+    if not GROQ_KEY:
+        return "AI analysis unavailable — GROQ_API_KEY not set."
 
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
@@ -353,30 +355,39 @@ Be specific and data-driven. Note sample sizes. Keep it practical — this will 
 Data:
 {json.dumps(entries, indent=2)}"""
 
-    # ── Gemini (default) ───────────────────────────────────────────────────────
-    client = genai.Client(api_key=GEMINI_KEY)
-    response = client.models.generate_content(
-        model="gemini-2.0-flash-lite",
-        contents=prompt,
+    # ── Groq (default) — fast free-tier inference via groq.com ────────────────
+    client = OpenAI(api_key=GROQ_KEY, base_url="https://api.groq.com/openai/v1")
+    completion = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        max_tokens=3000,
+        messages=[{"role": "user", "content": prompt}],
     )
-    return response.text
+    return completion.choices[0].message.content
+
+    # ── Gemini / Google (alternative) ─────────────────────────────────────────
+    # To switch to Gemini:
+    #   1. pip install google-genai>=1.0
+    #   2. set GEMINI_API_KEY in your .env  (https://aistudio.google.com — use AI Studio for free tier)
+    #   3. uncomment the block below and comment out the Grok block above
+    #
+    # from google import genai as _genai
+    # _client = _genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    # _resp = _client.models.generate_content(model="gemini-2.0-flash-lite", contents=prompt)
+    # return _resp.text
 
     # ── Anthropic / Claude (alternative) ──────────────────────────────────────
-    # To switch back to Claude:
+    # To switch to Claude:
     #   1. pip install anthropic>=0.40
     #   2. set ANTHROPIC_API_KEY in your .env  (https://console.anthropic.com)
-    #   3. uncomment the block below and comment out the Gemini block above
+    #   3. uncomment the block below and comment out the Grok block above
     #
-    # import anthropic
-    # client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    # msg = client.messages.create(
-    #     model="claude-sonnet-4-6",
-    #     max_tokens=3000,
-    #     messages=[{"role": "user", "content": prompt}],
-    # )
-    # return msg.content[0].text
+    # from anthropic import Anthropic as _Anthropic
+    # _ac = _Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    # _msg = _ac.messages.create(model="claude-sonnet-4-6", max_tokens=3000,
+    #                            messages=[{"role": "user", "content": prompt}])
+    # return _msg.content[0].text
 
-def save_analysis(location: str, content: str, model: str = "gemini-1.5-flash"):
+def save_analysis(location: str, content: str, model: str = "llama-3.3-70b-versatile"):
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
             "INSERT INTO ai_analysis (location, analysis_type, content, model) VALUES (?,?,?,?)",
@@ -592,8 +603,8 @@ def datetimeformat(ts):
 
 if __name__ == "__main__":
     init_db()
-    if GEMINI_KEY:
+    if GROQ_KEY:
         threading.Thread(target=analysis_scheduler, daemon=True).start()
     else:
-        log.warning("GEMINI_API_KEY not set — AI analysis disabled")
+        log.warning("GROQ_API_KEY not set — AI analysis disabled")
     app.run(host="0.0.0.0", port=PORT)
