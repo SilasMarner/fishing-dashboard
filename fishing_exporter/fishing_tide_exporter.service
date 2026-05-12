@@ -1,0 +1,19 @@
+[Unit]
+Description=Fishing & Tide Prometheus Exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/fishing_exporter
+ExecStart=/usr/bin/python3 /opt/fishing_exporter/fishing_tide_exporter.py
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=fishing-exporter
+
+[Install]
+WantedBy=multi-user.target

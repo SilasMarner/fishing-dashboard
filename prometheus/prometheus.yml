@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 60s
+  evaluation_interval: 60s
+
+scrape_configs:
+
+  # Fishing & Tide Exporter — runs as systemd service on the Docker host
+  # Metrics port: 9877  |  On-demand query port: 9878
+  - job_name: fishing_exporter
+    static_configs:
+      # Replace with your host's IP if Prometheus is in Docker
+      - targets: ['host.docker.internal:9877']
+        labels:
+          instance: fishing-host
+
+  # Fish Logger app metrics (if you add /metrics later)
+  # - job_name: fish_logger
+  #   static_configs:
+  #     - targets: ['fish-logger:9879']

@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fish Log</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif}
+body{background:#0d1117;color:#e6edf3;padding:14px}
+.loc-row{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.loc-btn{background:#1c2128;border:1px solid #30363d;color:#8b949e;
+         padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px}
+.loc-btn.active{background:#1f6feb;border-color:#1f6feb;color:#fff}
+.grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px;align-items:end}
+.lbl{display:block;font-size:11px;color:#8b949e;margin-bottom:3px}
+select,input[type=number],input[type=text]{
+  width:100%;background:#161b22;border:1px solid #30363d;
+  color:#e6edf3;padding:6px 8px;border-radius:4px;font-size:13px}
+.radio-row{display:flex;gap:12px;padding:7px 0;font-size:13px;align-items:center}
+.c{color:#3fb950}.s{color:#f85149}
+.sub{background:#1f6feb;color:#fff;border:none;padding:8px 22px;
+     border-radius:4px;cursor:pointer;font-size:14px;font-weight:600}
+.sub:disabled{opacity:.45;cursor:not-allowed}
+#msg{margin-left:12px;font-size:13px;font-weight:500}
+.note-row{margin-bottom:12px}
+hr{border:none;border-top:1px solid #30363d;margin:16px 0}
+.del-section h4{font-size:12px;color:#8b949e;margin-bottom:8px;font-weight:400}
+.del-table{width:100%;border-collapse:collapse;font-size:12px}
+.del-table th{color:#8b949e;font-weight:400;text-align:left;padding:4px 6px;border-bottom:1px solid #30363d}
+.del-table td{padding:4px 6px;border-bottom:1px solid #21262d;vertical-align:middle}
+.del-btn{background:transparent;border:1px solid #f85149;color:#f85149;
+         padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px}
+.del-btn:hover{background:#6e1c1c}
+.caught-y{color:#3fb950}.caught-n{color:#f85149}
+/* bulk-delete toolbar */
+.bulk-bar{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.sel-all-btn{background:#1c2128;border:1px solid #30363d;color:#8b949e;
+             padding:4px 10px;border-radius:3px;cursor:pointer;font-size:12px}
+.sel-all-btn:hover{border-color:#8b949e;color:#e6edf3}
+.bulk-del-btn{background:transparent;border:1px solid #f85149;color:#f85149;
+              padding:4px 12px;border-radius:3px;cursor:pointer;font-size:12px;font-weight:600}
+.bulk-del-btn:disabled{opacity:.35;cursor:not-allowed}
+.bulk-del-btn:not(:disabled):hover{background:#6e1c1c}
+.sel-count{font-size:12px;color:#8b949e}
+/* checkbox styling */
+input[type=checkbox]{accent-color:#1f6feb;width:14px;height:14px;cursor:pointer}
+.del-table th:first-child,.del-table td:first-child{width:28px;text-align:center}
+</style>
+</head>
+<body>
+
+<div class="loc-row" id="loc-row">
+  {% for key, name in locations.items() %}
+  <button class="loc-btn {% if loop.first %}active{% endif %}"
+          data-loc="{{ key }}">🎣 {{ name }}</button>
+  {% endfor %}
+</div>
+
+<div class="grid">
+  <div>
+    <label class="lbl">Species</label>
+    <select id="species"></select>
+  </div>
+  <div>
+    <label class="lbl">Result</label>
+    <div class="radio-row">
+      <label><input type="radio" name="caught" value="yes" checked> <span class="c">Caught</span></label>
+      <label><input type="radio" name="caught" value="no"> <span class="s">Skunked</span></label>
+    </div>
+  </div>
+  <div><label class="lbl">Count</label><input type="number" id="count" value="1" min="1"></div>
+  <div><label class="lbl">Size (in)</label><input type="number" id="size" step="0.5" placeholder="opt."></div>
+  <div><label class="lbl">Weight (lb)</label><input type="number" id="weight" step="0.1" placeholder="opt."></div>
+</div>
+
+<div class="note-row">
+  <label class="lbl">Notes (bait, technique, spot…)</label>
+  <input type="text" id="notes" placeholder="e.g. gulp shrimp under popping cork, jetty">
+</div>
+
+<button class="sub" id="sub">🎣 Log Catch + Snapshot Conditions</button>
+<span id="msg"></span>
+
+<hr>
+
+<div class="del-section">
+  <h4>Recent entries — select rows to bulk delete, or click 🗑 for a single entry</h4>
+  <div class="bulk-bar">
+    <button class="sel-all-btn" id="btn-sel-all">Select All</button>
+    <button class="sel-all-btn" id="btn-sel-none">Deselect All</button>
+    <button class="bulk-del-btn" id="btn-bulk-del" disabled>🗑 Delete Selected (<span id="sel-count">0</span>)</button>
+    <span class="sel-count" id="sel-hint"></span>
+  </div>
+  <table class="del-table">
+    <thead>
+      <tr>
+        <th><input type="checkbox" id="chk-all" title="Toggle all"></th>
+        <th>Time</th><th>Location</th><th>Species</th><th>Result</th><th></th>
+      </tr>
+    </thead>
+    <tbody id="recent-body"><tr><td colspan="6" style="color:#8b949e">Loading…</td></tr></tbody>
+  </table>
+</div>
+
+<script>
+const SPECIES = {{ species | tojson }};
+const LOC_NAMES = {{ locations | tojson }};
+let loc = Object.keys(SPECIES)[0];
+
+function setLoc(l) {
+  loc = l;
+  document.querySelectorAll('.loc-btn').forEach(b => b.classList.toggle('active', b.dataset.loc === l));
+  const sel = document.getElementById('species');
+  sel.innerHTML = SPECIES[l].map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+document.querySelectorAll('.loc-btn').forEach(b =>
+  b.addEventListener('click', () => setLoc(b.dataset.loc))
+);
+
+document.getElementById('sub').addEventListener('click', async () => {
+  const btn = document.getElementById('sub');
+  const msg = document.getElementById('msg');
+  btn.disabled = true;
+  msg.style.color = '#8b949e'; msg.textContent = 'Logging…';
+
+  const fd = new FormData();
+  fd.append('location',   loc);
+  fd.append('species',    document.getElementById('species').value);
+  fd.append('caught',     document.querySelector('input[name=caught]:checked').value);
+  fd.append('fish_count', document.getElementById('count').value);
+  const sz = document.getElementById('size').value;
+  const wt = document.getElementById('weight').value;
+  const nt = document.getElementById('notes').value;
+  if (sz) fd.append('size_in', sz);
+  if (wt) fd.append('weight_lbs', wt);
+  if (nt) fd.append('notes', nt);
+
+  try {
+    const r = await fetch('/api/log', {method:'POST', body:fd});
+    const j = await r.json();
+    if (j.status === 'ok') {
+      msg.style.color = '#3fb950';
+      msg.textContent = '✅ Logged with conditions snapshot!';
+      document.getElementById('count').value  = '1';
+      document.getElementById('size').value   = '';
+      document.getElementById('weight').value = '';
+      document.getElementById('notes').value  = '';
+      loadRecent();
+    } else { throw new Error(j.message || 'error'); }
+  } catch(e) {
+    msg.style.color = '#f85149';
+    msg.textContent = '❌ ' + e.message;
+  }
+
+  btn.disabled = false;
+  setTimeout(() => { msg.textContent = ''; }, 4000);
+});
+
+// ── Selection helpers ─────────────────────────────────────────────────────────
+function getChecked() {
+  return [...document.querySelectorAll('.row-chk:checked')].map(c => parseInt(c.dataset.id));
+}
+
+function updateBulkBar() {
+  const checked = getChecked();
+  const n = checked.length;
+  document.getElementById('sel-count').textContent = n;
+  document.getElementById('btn-bulk-del').disabled = n === 0;
+  const total = document.querySelectorAll('.row-chk').length;
+  document.getElementById('chk-all').checked = total > 0 && n === total;
+  document.getElementById('chk-all').indeterminate = n > 0 && n < total;
+  document.getElementById('sel-hint').textContent = n > 0 ? `${n} of ${total} selected` : '';
+}
+
+document.getElementById('chk-all').addEventListener('change', e => {
+  document.querySelectorAll('.row-chk').forEach(c => { c.checked = e.target.checked; });
+  updateBulkBar();
+});
+
+document.getElementById('btn-sel-all').addEventListener('click', () => {
+  document.querySelectorAll('.row-chk').forEach(c => { c.checked = true; });
+  updateBulkBar();
+});
+
+document.getElementById('btn-sel-none').addEventListener('click', () => {
+  document.querySelectorAll('.row-chk').forEach(c => { c.checked = false; });
+  updateBulkBar();
+});
+
+document.getElementById('btn-bulk-del').addEventListener('click', async () => {
+  const ids = getChecked();
+  if (!ids.length) return;
+  if (!confirm(`Delete ${ids.length} entr${ids.length === 1 ? 'y' : 'ies'}?`)) return;
+
+  const btn = document.getElementById('btn-bulk-del');
+  btn.disabled = true;
+
+  try {
+    const r = await fetch('/api/log/bulk-delete', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ids}),
+    });
+    const j = await r.json();
+    if (j.status === 'ok') {
+      ids.forEach(id => document.getElementById('row-' + id)?.remove());
+      updateBulkBar();
+    } else {
+      alert('Bulk delete failed: ' + (j.message || 'unknown error'));
+      btn.disabled = false;
+    }
+  } catch(e) {
+    alert('Bulk delete error: ' + e.message);
+    btn.disabled = false;
+  }
+});
+
+// ── Load recent entries ───────────────────────────────────────────────────────
+async function loadRecent() {
+  try {
+    const r = await fetch('/api/recent');
+    const rows = await r.json();
+    const tbody = document.getElementById('recent-body');
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="color:#8b949e">No entries yet.</td></tr>';
+      updateBulkBar();
+      return;
+    }
+    tbody.innerHTML = rows.map(row => `
+      <tr id="row-${row.id}">
+        <td><input type="checkbox" class="row-chk" data-id="${row.id}" onchange="updateBulkBar()"></td>
+        <td style="color:#8b949e;white-space:nowrap">${row.time}</td>
+        <td>${LOC_NAMES[row.location] || row.location}</td>
+        <td>${row.species}</td>
+        <td class="${row.caught ? 'caught-y' : 'caught-n'}">${row.caught ? '✅' : '❌'}</td>
+        <td><button class="del-btn" onclick="delEntry(${row.id})">🗑</button></td>
+      </tr>`).join('');
+    updateBulkBar();
+  } catch(e) { console.error(e); }
+}
+
+async function delEntry(id) {
+  if (!confirm('Delete this entry?')) return;
+  const r = await fetch('/api/log/' + id, {method:'POST', headers:{'X-Method':'DELETE'}});
+  const j = await r.json();
+  if (j.status === 'ok') {
+    document.getElementById('row-' + id)?.remove();
+    updateBulkBar();
+  } else {
+    alert('Delete failed: ' + j.message);
+  }
+}
+
+setLoc(loc);
+loadRecent();
+</script>
+</body>
+</html>

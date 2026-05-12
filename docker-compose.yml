@@ -1,0 +1,89 @@
+version: "3.8"
+
+# Fishing Dashboard Stack
+# Runs: fish-logger (Flask app + AI), Prometheus (metrics), Grafana (dashboards)
+#
+# Prerequisites:
+#   1. Copy .env.example → .env and fill in your values
+#   2. Create data directories (see README.md)
+#   3. Provision Grafana datasource (grafana/provisioning/datasources/fish-sqlite.yaml)
+#   4. Run the fishing_exporter as a systemd service on the host (see README.md)
+
+services:
+
+  # ─── Fish Logger ─────────────────────────────────────────────────────────────
+  # Flask app: catch logging, AI analysis, Grafana embed page
+  fish-logger:
+    image: fish-logger:latest
+    container_name: fish-logger
+    build:
+      context: ./fish_logger
+    restart: unless-stopped
+    environment:
+      - TZ=America/Chicago
+      - DB_PATH=/data/fish_log.db
+      - PROMETHEUS_URL=http://prometheus:9090
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANALYSIS_INTERVAL_HOURS=6
+      - PORT=9879
+    ports:
+      - "9879:9879"
+    volumes:
+      - ${FISHING_DATA_DIR:-./data}:/data
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+
+  # ─── Prometheus ───────────────────────────────────────────────────────────────
+  # Stores metrics from the fishing_exporter systemd service (port 9877)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    user: "0:0"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ${PROMETHEUS_CONFIG_DIR:-./prometheus}:/etc/prometheus
+      - ${PROMETHEUS_DATA_DIR:-./prometheus/data}:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-lifecycle
+      - --web.cors.origin=.*
+    networks:
+      - monitoring
+
+  # ─── Grafana ─────────────────────────────────────────────────────────────────
+  # Dashboard UI — embeds the fish-logger /embed page in an iframe panel
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    user: "0:0"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - TZ=America/Chicago
+      - GF_PANELS_DISABLE_SANITIZE_HTML=true
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_SECURITY_CONTENT_SECURITY_POLICY=false
+      - GF_INSTALL_PLUGINS=frser-sqlite-datasource
+    ports:
+      - "3000:3000"
+    volumes:
+      - ${GRAFANA_DATA_DIR:-./grafana/data}:/var/lib/grafana
+      - ${GRAFANA_PROVISIONING_DIR:-./grafana/provisioning}:/etc/grafana/provisioning
+      # Fish log SQLite DB — mounted read-only so Grafana can query it
+      - ${FISHING_DATA_DIR:-./data}:/fishing:ro
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+
+networks:
+  monitoring:
+    driver: bridge

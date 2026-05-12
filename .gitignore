@@ -1,0 +1,22 @@
+# Secrets
+.env
+
+# Runtime data
+data/
+prometheus/data/
+grafana/data/
+*.db
+*.db-shm
+*.db-wal
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Editor
+.DS_Store
+*.swp
+*.bak

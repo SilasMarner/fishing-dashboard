@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %} — History{% endblock %}
+{% block content %}
+
+<ul class="nav nav-pills mb-4">
+  {% for key, name in locations.items() %}
+  <li class="nav-item">
+    <a class="nav-link {% if selected == key %}active{% endif %}"
+       href="/history?location={{ key }}">{{ name }}</a>
+  </li>
+  {% endfor %}
+</ul>
+
+<div class="card">
+  <div class="card-header"><i class="bi bi-clock-history"></i> Recent Catches — {{ locations[selected] }} (last 100)</div>
+  <div class="card-body p-0">
+    {% if rows %}
+    <div class="table-responsive">
+      <table class="table table-dark table-hover table-sm mb-0">
+        <thead>
+          <tr>
+            <th>Date / Time</th>
+            <th>Species</th>
+            <th>Result</th>
+            <th>Ct</th>
+            <th>Size</th>
+            <th>Wt</th>
+            <th>Pressure</th>
+            <th>Trend</th>
+            <th>Tide</th>
+            <th>Solunar</th>
+            <th>Score</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          {% set dt = r['logged_at']|int %}
+          <tr>
+            <td class="text-nowrap text-muted small">{{ dt | datetimeformat }}</td>
+            <td>{{ r['species'] }}</td>
+            <td>
+              {% if r['caught'] %}
+                <span class="badge badge-caught">Caught</span>
+              {% else %}
+                <span class="badge badge-skunked">Skunked</span>
+              {% endif %}
+            </td>
+            <td>{{ r['fish_count'] or '—' }}</td>
+            <td>{% if r['size_in'] %}{{ r['size_in'] }}"{% else %}—{% endif %}</td>
+            <td>{% if r['weight_lbs'] %}{{ r['weight_lbs'] }} lb{% else %}—{% endif %}</td>
+            <td>{% if r['pressure_mb'] %}{{ "%.0f"|format(r['pressure_mb']) }} mb{% else %}—{% endif %}</td>
+            <td>
+              {% if r['pressure_trend'] == 1 or r['pressure_trend'] == 1.0 %}<span class="text-success">↑</span>
+              {% elif r['pressure_trend'] == -1 or r['pressure_trend'] == -1.0 %}<span class="text-danger">↓</span>
+              {% elif r['pressure_trend'] is not none %}→
+              {% else %}—{% endif %}
+            </td>
+            <td>{% if r['tide_height_ft'] %}{{ "%.1f"|format(r['tide_height_ft']) }} ft{% else %}—{% endif %}</td>
+            <td>
+              {% if r['solunar_period'] == 'major' %}<span class="text-warning">Major</span>
+              {% elif r['solunar_period'] == 'minor' %}<span class="text-info">Minor</span>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td>{% if r['fishing_score'] %}{{ "%.1f"|format(r['fishing_score']) }}{% else %}—{% endif %}</td>
+            <td class="text-muted small">{{ r['notes'] or '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="p-4 text-center text-muted">No catches logged yet for {{ locations[selected] }}.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

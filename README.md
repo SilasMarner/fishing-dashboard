@@ -1,0 +1,259 @@
+# Fishing Dashboard
+
+A self-hosted fishing intelligence stack that combines real-time NOAA tide predictions, NWS weather, solunar tables, and AI-powered catch analysis — all displayed in Grafana.
+
+---
+
+## Architecture
+
+```
+Host (systemd)
+└── fishing_exporter          ← scrapes NOAA/NWS every 60 s, exposes Prometheus metrics
+      ports: 9877 (metrics)
+             9878 (on-demand date query for Grafana tide chart)
+
+Docker (docker-compose)
+├── prometheus                ← scrapes fishing_exporter:9877, stores 30 days
+├── fish-logger               ← Flask app: log catches, AI analysis, Grafana embed page
+│     port: 9879
+└── grafana                   ← dashboard UI with tide chart, catch log embed, AI panel
+      port: 3000
+```
+
+### Data flow
+
+1. `fishing_exporter` fetches tides, weather, solunar, moon phase every 60 s per location and exposes them as Prometheus gauges.
+2. Grafana's `gapit-htmlgraphics-panel` queries Prometheus (via `/api/datasources/proxy`) to render the interactive tide chart.
+3. When you log a catch via the Grafana-embedded form, `fish-logger` simultaneously snapshots all current Prometheus metrics and stores them alongside the catch in `fish_log.db`.
+4. The AI analysis scheduler runs every N hours, sends the last 300 catches + conditions to Claude, and saves the report to `fish_log.db`.
+5. Grafana's `frser-sqlite-datasource` plugin queries `fish_log.db` directly for the catch history table.
+
+---
+
+## Prerequisites
+
+| Requirement | Notes |
+|---|---|
+| Docker + Docker Compose | v2.x+ |
+| Python 3.11+ | For the host-side exporter |
+| `pip install prometheus_client requests ephem` | Exporter dependencies |
+| Anthropic API key | For AI catch analysis — get one at [console.anthropic.com](https://console.anthropic.com) |
+| Grafana plugin `frser-sqlite-datasource` | Auto-installed via `GF_INSTALL_PLUGINS` env var |
+
+---
+
+## Quick Start
+
+### 1 — Clone and configure
+
+```bash
+git clone https://github.com/SilasMarner/fishing-dashboard.git
+cd fishing-dashboard
+cp .env.example .env
+# Edit .env — set ANTHROPIC_API_KEY and GRAFANA_ADMIN_PASSWORD at minimum
+```
+
+### 2 — Install and start the fishing exporter (host systemd service)
+
+The exporter runs **on the Docker host** (not in a container) so it can reach external APIs without proxy complexity and expose metrics on a stable IP.
+
+```bash
+# Install Python dependencies
+pip3 install prometheus_client requests ephem
+
+# Copy exporter to a permanent location
+sudo cp fishing_exporter/fishing_tide_exporter.py /opt/fishing_exporter/
+
+# Install and enable the systemd service
+sudo cp fishing_exporter/fishing_tide_exporter.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now fishing-exporter
+
+# Verify it's running and exposing metrics
+systemctl status fishing-exporter
+curl -s http://localhost:9877/metrics | grep fishing_score
+```
+
+**The exporter exposes two ports:**
+- `9877` — Prometheus metrics (scraped every 60 s by Prometheus)
+- `9878` — On-demand date query endpoint used by the Grafana tide chart for historical dates
+
+### 3 — Create data directories
+
+```bash
+mkdir -p data prometheus/data grafana/data grafana/provisioning/datasources
+cp grafana/provisioning/datasources/fish-sqlite.yaml grafana/provisioning/datasources/
+```
+
+### 4 — Configure Prometheus to scrape the exporter
+
+Edit `prometheus/prometheus.yml` and replace `host.docker.internal:9877` with your host's actual IP address if needed (e.g. `10.0.0.13:9877`).
+
+### 5 — Start the Docker stack
+
+```bash
+docker compose up -d
+```
+
+Check that all three containers are healthy:
+
+```bash
+docker compose ps
+curl -s http://localhost:9879/healthz          # fish-logger: should return "ok"
+curl -s http://localhost:9090/-/ready          # prometheus: should return "Prometheus is Ready."
+```
+
+### 6 — Import the Grafana dashboard
+
+1. Open Grafana at `http://<your-host>:3000`
+2. Log in with `admin` / the password you set in `.env`
+3. Go to **Dashboards → Import**
+4. Upload `grafana/fishing-tides-solunar-dashboard.json` (export this from your existing Grafana instance)
+
+> **Note:** The dashboard JSON is not included in this repo because it references your specific Prometheus datasource UID and host IP. Export it from Grafana via **Dashboard settings → JSON Model → Copy to clipboard**, then save it as `grafana/fishing-tides-solunar-dashboard.json`.
+
+---
+
+## Fish Logger — Web Interface
+
+The `fish-logger` app runs on port **9879** and has two interfaces:
+
+| URL | Purpose |
+|---|---|
+| `http://<host>:9879/` | Full web UI — log catches, view history, AI analysis |
+| `http://<host>:9879/embed` | Stripped-down iframe version embedded in Grafana |
+| `http://<host>:9879/analysis?location=freeport_tx` | AI analysis page |
+
+### Logging a catch
+
+1. Select your location tab (Freeport TX, N Padre Island TX, Pensacola FL, Sargent TX, Matagorda TX)
+2. Choose species from the location-specific dropdown
+3. Mark Caught or Skunked, fill in count/size/weight/notes (all optional except species)
+4. Click **Log Catch + Snapshot Conditions**
+
+At the moment of logging, the app queries Prometheus for: tide height, water level, barometric pressure + trend, temperature, wind speed, precipitation chance, humidity, cloud cover, solunar period, moon phase, and fishing score. All are saved alongside your catch entry.
+
+### Deleting entries
+
+- **Single:** Click the 🗑 button on the row
+- **Multiple:** Check individual rows (or use **Select All**), then click **Delete Selected**
+
+### AI Analysis
+
+The AI scheduler runs automatically every 6 hours (configurable via `ANALYSIS_INTERVAL_HOURS`). To trigger it manually:
+
+```bash
+curl -X POST http://localhost:9879/api/analyze/freeport_tx
+```
+
+Or click **Run Now** in the Analysis tab of the web UI.
+
+---
+
+## API Reference
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/recent` | Last 20 log entries as JSON |
+| `POST` | `/api/log` | Log a catch (form data: location, species, caught, fish_count, size_in, weight_lbs, notes) |
+| `POST` | `/api/log/<id>` | Delete a single entry (also accepts DELETE) |
+| `POST` | `/api/log/bulk-delete` | Delete multiple entries: `{"ids": [1, 2, 3]}` |
+| `GET` | `/api/analysis/<location>` | Latest AI analysis for a location |
+| `POST` | `/api/analyze/<location>` | Trigger immediate AI analysis |
+| `GET` | `/api/conditions/<location>` | Current Prometheus conditions snapshot |
+
+---
+
+## Locations and Species
+
+Locations are defined in two separate files:
+
+### fishing_exporter — tide, weather, solunar data
+
+**File:** `fishing_exporter/fishing_tide_exporter.py`  
+**Dictionary:** `STATIONS` (top of file, ~line 25)
+
+### fish_logger — species lists, location names
+
+**File:** `fish_logger/app.py`  
+**Dictionaries:** `SPECIES` and `LOCATION_NAMES` (top of file, ~line 30)
+
+See [`docs/ADDING_STATIONS.md`](docs/ADDING_STATIONS.md) for step-by-step instructions on adding a new location.
+
+---
+
+## Grafana Plugin Requirements
+
+The dashboard uses two Grafana plugins:
+
+| Plugin | ID | Purpose |
+|---|---|---|
+| HTML Graphics | `gapit-htmlgraphics-panel` | Tide chart with interactive location switcher |
+| SQLite | `frser-sqlite-datasource` | Direct query of fish_log.db for catch history |
+
+`frser-sqlite-datasource` is installed automatically via the `GF_INSTALL_PLUGINS` env var in `docker-compose.yml`.
+
+`gapit-htmlgraphics-panel` must be installed manually if you're on Grafana Cloud, or is available in the plugin catalog for self-hosted Grafana.
+
+---
+
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `ANTHROPIC_API_KEY` | Yes (for AI) | — | Anthropic API key |
+| `GRAFANA_ADMIN_PASSWORD` | Yes | — | Grafana admin password (≥8 chars) |
+| `GRAFANA_ADMIN_USER` | No | `admin` | Grafana admin username |
+| `FISHING_DATA_DIR` | No | `./data` | Directory for fish_log.db |
+| `PROMETHEUS_CONFIG_DIR` | No | `./prometheus` | Prometheus config directory |
+| `PROMETHEUS_DATA_DIR` | No | `./prometheus/data` | Prometheus TSDB storage |
+| `GRAFANA_DATA_DIR` | No | `./grafana/data` | Grafana persistent storage |
+| `GRAFANA_PROVISIONING_DIR` | No | `./grafana/provisioning` | Grafana provisioning configs |
+| `ANALYSIS_INTERVAL_HOURS` | No | `6` | AI analysis re-run interval |
+| `DB_PATH` | No | `/data/fish_log.db` | Path inside fish-logger container |
+| `PROMETHEUS_URL` | No | `http://prometheus:9090` | Prometheus URL seen by fish-logger |
+| `PORT` | No | `9879` | fish-logger HTTP port |
+
+---
+
+## Troubleshooting
+
+### fish-logger says "Logging…" and never responds
+
+The app queries Prometheus for 16 metrics at log time (2 s timeout each). If Prometheus is unreachable, logging times out. Check:
+
+```bash
+docker exec fish-logger curl -s http://prometheus:9090/-/ready
+docker logs fish-logger --tail 30
+```
+
+Make sure both containers are on the same Docker network (`monitoring`).
+
+### No metrics in Prometheus / tide chart blank
+
+Check the exporter is running and Prometheus can reach it:
+
+```bash
+systemctl status fishing-exporter
+journalctl -u fishing-exporter -n 30
+curl -s http://localhost:9877/metrics | grep fishing_score_now
+# Then check Prometheus targets:
+curl -s http://localhost:9090/api/v1/targets | python3 -m json.tool | grep -A5 fishing
+```
+
+### Grafana can't find fish_log.db
+
+The `FISHING_DATA_DIR` volume must be mounted at `/fishing` inside the Grafana container AND the SQLite datasource path must be `/fishing/fish_log.db`. Verify with:
+
+```bash
+docker exec grafana ls /fishing/
+```
+
+### AI analysis not generating
+
+```bash
+docker logs fish-logger | grep -i "anthropic\|analysis\|error"
+curl -s http://localhost:9879/api/conditions/freeport_tx  # verify app is reachable
+```
+
+Make sure `ANTHROPIC_API_KEY` is set and valid. The scheduler waits 90 s after startup before the first run.

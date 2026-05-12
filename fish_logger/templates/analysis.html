@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %} — AI Analysis{% endblock %}
+{% block content %}
+
+<ul class="nav nav-pills mb-4">
+  {% for key, name in locations.items() %}
+  <li class="nav-item">
+    <a class="nav-link {% if selected == key %}active{% endif %}"
+       href="/analysis?location={{ key }}">{{ name }}</a>
+  </li>
+  {% endfor %}
+</ul>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-robot"></i> AI Analysis — {{ locations[selected] }}</span>
+    <button class="btn btn-sm btn-outline-primary" id="analyzeBtn" onclick="triggerAnalysis()">
+      <i class="bi bi-arrow-repeat"></i> Run Now
+    </button>
+  </div>
+  <div class="card-body">
+    {% if latest %}
+      <div class="text-muted small mb-3">
+        <i class="bi bi-clock"></i> Generated: {{ latest['generated_at']|int | datetimeformat }}
+        &nbsp;|&nbsp; Model: {{ latest['model'] }}
+      </div>
+      <div id="analysisContent" class="analysis-body"></div>
+      <script>
+        // Render Markdown safely
+        const raw = {{ latest['content'] | tojson }};
+        document.getElementById('analysisContent').innerHTML = markdownToHtml(raw);
+      </script>
+    {% else %}
+      <div class="text-center text-muted py-5">
+        <i class="bi bi-robot" style="font-size:3rem"></i>
+        <p class="mt-3">No analysis yet for {{ locations[selected] }}.</p>
+        <p class="small">Log some catches first, then click <strong>Run Now</strong>.</p>
+      </div>
+    {% endif %}
+
+    <div id="loadingSpinner" class="text-center py-5 d-none">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="mt-3 text-muted">Analyzing your fishing history with AI…</p>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Minimal Markdown → HTML (headers, bold, bullets)
+function markdownToHtml(md) {
+  return md
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/^#### (.+)$/gm, '<h6 class="text-info mt-4">$1</h6>')
+    .replace(/^### (.+)$/gm, '<h5 class="text-warning mt-4">$1</h5>')
+    .replace(/^## (.+)$/gm, '<h4 class="text-light mt-4 border-bottom border-secondary pb-1">$1</h4>')
+    .replace(/^# (.+)$/gm, '<h3 class="text-primary mt-4">$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul class="mb-2">$&</ul>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/^(?!<[hul])/gm, '')
+    .trim();
+}
+
+async function triggerAnalysis() {
+  const btn = document.getElementById('analyzeBtn');
+  const spinner = document.getElementById('loadingSpinner');
+  const content = document.getElementById('analysisContent');
+  btn.disabled = true;
+  if (content) content.style.display = 'none';
+  spinner.classList.remove('d-none');
+
+  try {
+    const loc = new URLSearchParams(window.location.search).get('location') || 'freeport_tx';
+    const resp = await fetch('/api/analyze/' + loc, { method: 'POST' });
+    const data = await resp.json();
+    if (data.status === 'ok') {
+      window.location.reload();
+    } else {
+      alert('Analysis failed: ' + data.message);
+    }
+  } catch (e) {
+    alert('Request failed: ' + e);
+  } finally {
+    btn.disabled = false;
+    spinner.classList.add('d-none');
+    if (content) content.style.display = '';
+  }
+}
+</script>
+{% endblock %}
