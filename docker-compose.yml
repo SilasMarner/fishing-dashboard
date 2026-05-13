@@ -34,6 +34,7 @@ services:
       - ${FISHING_DATA_DIR:-./data}:/data
     networks:
       - monitoring
+      - grafana_net
     depends_on:
       - prometheus
 
@@ -57,6 +58,7 @@ services:
       - --web.cors.origin=.*
     networks:
       - monitoring
+      - grafana_net
 
   # ─── Grafana ─────────────────────────────────────────────────────────────────
   # Dashboard UI — embeds the fish-logger /embed page in an iframe panel
@@ -89,3 +91,6 @@ services:
 networks:
   monitoring:
     driver: bridge
+  grafana_net:
+    external: true
+    name: loki-promtail_monitoring
