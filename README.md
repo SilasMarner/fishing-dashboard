@@ -48,11 +48,13 @@ Analysis runs automatically every 6 hours across all 5 locations. Correlates pre
 
 Live tides, weather, solunar windows, fishing score gauge, moon phase, and tide events table — one collapsible row per location.
 
-### Grafana — Future Date / Forecast View
+### Grafana — Date Navigation (Historical & Forecast)
 
-![Grafana Future Date](docs/screenshots/grafana_future_date.png)
+| Past Date — NWS Historical Obs | Future Date — NWS Hourly Forecast |
+|---|---|
+| ![Grafana Past Date](docs/screenshots/grafana_past_date.png) | ![Grafana Future Date](docs/screenshots/grafana_future_date.png) |
 
-Click the date arrows or picker in the tide panel to jump to any date. Past dates pull NWS historical observations; future dates (≤7 days) pull NWS hourly forecast. Weather, tide chart, solunar windows, and fishing score all update for the selected date — no page reload needed.
+Click the date arrows or picker in the tide panel to jump to any date. Past dates pull NWS historical observations (actual temp, pressure, wind, humidity, clouds); future dates (≤7 days) pull NWS hourly forecast. Weather, tide chart, solunar windows, and fishing score all update for the selected date — no page reload needed.
 
 ---
 
