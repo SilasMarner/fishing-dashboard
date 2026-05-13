@@ -9,7 +9,7 @@ A self-hosted fishing intelligence stack that combines real-time NOAA tide predi
 ### Catch Log Form — embedded in Grafana
 ![Embed Log Form](docs/screenshots/embed_log_form.png)
 
-Location buttons, species dropdown (49+ species per Texas location, 59 for Pensacola including full shark variety), Caught/Skunked toggle, optional size/weight/notes fields, datetime picker for backdating or forward-dating catches, and a recent entries table with per-row and bulk-select delete.
+Location buttons, species dropdown (49+ species per Texas location, 59 for Pensacola including full shark variety), Caught/Skunked toggle, optional size/weight/notes fields, and a recent entries table with per-row and bulk-select delete. The full web UI (`/`) adds a datetime picker for backdating or planning ahead — see the Dashboard section below.
 
 ### Catch History — full conditions snapshot per entry
 
