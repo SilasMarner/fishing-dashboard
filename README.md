@@ -29,6 +29,14 @@ Every logged catch saves a full conditions snapshot at that moment: pressure + t
 |---|---|---|
 | ![Dashboard Freeport](docs/screenshots/dashboard_freeport_tx.png) | ![Dashboard Padre](docs/screenshots/dashboard_padre_island_tx.png) | ![Dashboard Pensacola](docs/screenshots/dashboard_pensacola_fl.png) |
 
+### Dashboard — Date & Time Picker
+
+| Now (live conditions) | Past date (historical) | Future date (forecast) |
+|---|---|---|
+| ![Datepicker Now](docs/screenshots/datepicker_now.png) | ![Datepicker Historical](docs/screenshots/datepicker_historical.png) | ![Datepicker Forecast](docs/screenshots/datepicker_forecast.png) |
+
+Change the Date & Time field to any date and the conditions panel updates instantly — no page reload. Past dates pull NWS historical observations; future dates (≤7 days) pull NWS hourly forecast. The full conditions snapshot saved with the entry always matches the selected date and time.
+
 ### AI Analysis — Groq (Llama 3.3 70B)
 
 Analysis runs automatically every 6 hours across all 5 locations. Correlates pressure trends, tide stages, solunar windows, wind, and temperature against catch history to produce a data-driven fishing report.
