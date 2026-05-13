@@ -23,8 +23,8 @@
   "panels": [
     {
       "datasource": {
-        "type": "loki",
-        "uid": "YOUR_LOKI_DATASOURCE_UID"
+        "type": "prometheus",
+        "uid": "prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -101,22 +101,14 @@
       "pluginVersion": "2.2.3",
       "targets": [
         {
-          "direction": "backward",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "editorMode": "builder",
           "expr": "",
           "queryType": "range",
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "YOUR_LOKI_DATASOURCE_UID"
-          },
-          "direction": "backward",
-          "editorMode": "builder",
-          "expr": "",
-          "queryType": "range",
-          "refId": "B"
         }
       ],
       "title": "Tides",
