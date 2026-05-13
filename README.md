@@ -9,7 +9,7 @@ A self-hosted fishing intelligence stack that combines real-time NOAA tide predi
 ### Catch Log Form — embedded in Grafana
 ![Embed Log Form](docs/screenshots/embed_log_form.png)
 
-Location buttons, species dropdown (49+ species per Texas location, 59 for Pensacola including full shark variety), Caught/Skunked toggle, optional size/weight/notes fields, and a recent entries table with per-row and bulk-select delete.
+Location buttons, species dropdown (49+ species per Texas location, 59 for Pensacola including full shark variety), Caught/Skunked toggle, optional size/weight/notes fields, datetime picker for backdating or forward-dating catches, and a recent entries table with per-row and bulk-select delete.
 
 ### Catch History — full conditions snapshot per entry
 
@@ -192,9 +192,20 @@ The `fish-logger` app runs on port **9879** and has two interfaces:
 1. Select your location tab (Freeport TX, N Padre Island TX, Pensacola FL, Sargent TX, Matagorda TX)
 2. Choose species from the location-specific dropdown
 3. Mark Caught or Skunked, fill in count/size/weight/notes (all optional except species)
-4. Click **Log Catch + Snapshot Conditions**
+4. Set the **Date & Time** — defaults to now, but you can change it to backdate a catch or pre-log a planned trip
+5. Click **Log Entry + Snapshot Conditions**
 
-At the moment of logging, the app queries Prometheus for: tide height, water level, barometric pressure + trend, temperature, wind speed, precipitation chance, humidity, cloud cover, solunar period, moon phase, and fishing score. All are saved alongside your catch entry.
+When you log a catch, the app snapshots the full conditions for the selected date and time: tide height, water level, barometric pressure + trend, temperature, wind speed, precipitation chance, humidity, cloud cover, solunar period, moon phase, and fishing score. All are saved alongside your catch entry.
+
+**How conditions are sourced by date:**
+
+| Date | Source |
+|---|---|
+| Today | Live Prometheus metrics from the fishing exporter |
+| Past date | NWS historical observations (reading nearest to noon for that day) |
+| Future date (≤7 days) | NWS hourly forecast (period nearest to noon for that day) |
+
+The conditions panel on the right updates live as you change the date picker — no page reload needed. Note that past dates won't have a real-time tide height (only the nearest Hi/Lo predictions are stored), and future dates won't have barometric pressure (not available in NWS forecasts).
 
 ### Deleting entries
 
@@ -277,6 +288,7 @@ The dashboard uses two Grafana plugins:
 | `ANALYSIS_INTERVAL_HOURS` | No | `6` | AI analysis re-run interval |
 | `DB_PATH` | No | `/data/fish_log.db` | Path inside fish-logger container |
 | `PROMETHEUS_URL` | No | `http://prometheus:9090` | Prometheus URL seen by fish-logger |
+| `EXPORTER_QUERY_URL` | No | `http://localhost:9878` | Exporter on-demand query endpoint for historical/forecast conditions |
 | `PORT` | No | `9879` | fish-logger HTTP port |
 
 ---
