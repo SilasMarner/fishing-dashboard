@@ -237,6 +237,110 @@ def fetch_nws_forecast(office, gridx, gridy) -> list:
         log.warning(f"NWS forecast failed {office}/{gridx},{gridy}: {e}")
         return []
 
+def fetch_weather_for_date(cfg: dict, target_date: date) -> dict:
+    """Return a weather snapshot for target_date.
+    Past/today: NWS historical observations (observation nearest to noon).
+    Future (≤7 days): NWS hourly forecast period nearest to noon.
+    Returns an empty dict if data is unavailable.
+    """
+    today   = date.today()
+    station = cfg["nws_station"]
+    tz      = ZoneInfo(cfg["tz"])
+
+    def obs_to_wx(obs: dict) -> dict:
+        temp_c  = nws_val(obs.get("temperature"))
+        p_obj   = first_valid_pressure(obs)
+        wind_obj = obs.get("windSpeed")
+        cloud_pct = 0
+        okta_map  = {"FEW": 19, "SCT": 44, "BKN": 75, "OVC": 100, "VV": 100}
+        for layer in obs.get("cloudLayers", []):
+            cloud_pct = max(cloud_pct, okta_map.get(layer.get("amount", ""), 0))
+        return {
+            "temp_f":         c_to_f(temp_c),
+            "humidity":       round(nws_val(obs.get("relativeHumidity"))) if nws_val(obs.get("relativeHumidity")) is not None else None,
+            "pressure_mb":    pa_to_mb(nws_val(p_obj)) if p_obj is not None else None,
+            "wind_speed_mph": wind_to_mph(nws_val(wind_obj), nws_unit(wind_obj)),
+            "wind_deg":       round(nws_val(obs.get("windDirection"))) if nws_val(obs.get("windDirection")) is not None else None,
+            "precip_chance":  0,
+            "cloud_cover":    cloud_pct,
+            "description":    obs.get("textDescription", ""),
+        }
+
+    noon_ts = datetime(target_date.year, target_date.month, target_date.day,
+                       12, 0, 0, tzinfo=tz).timestamp()
+
+    if target_date <= today:
+        local_start = datetime(target_date.year, target_date.month, target_date.day,
+                               0, 0, 0, tzinfo=tz)
+        local_end   = local_start + timedelta(days=1, seconds=-1)
+        start_iso   = local_start.astimezone(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%SZ")
+        end_iso     = local_end.astimezone(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%SZ")
+        url = (f"https://api.weather.gov/stations/{station}/observations"
+               f"?start={start_iso}&end={end_iso}&limit=25")
+        try:
+            r = requests.get(url, headers=NWS_HEADERS, timeout=15)
+            r.raise_for_status()
+            features = r.json().get("features", [])
+            best, best_diff = None, float("inf")
+            for feat in features:
+                ts_str = feat.get("properties", {}).get("timestamp", "")
+                try:
+                    obs_ts = datetime.fromisoformat(ts_str).timestamp()
+                    diff   = abs(obs_ts - noon_ts)
+                    if diff < best_diff:
+                        best_diff = diff
+                        best = feat["properties"]
+                except Exception:
+                    pass
+            if best:
+                return obs_to_wx(best)
+        except Exception as e:
+            log.warning(f"NWS historical obs failed {station} {target_date}: {e}")
+        return {}
+
+    else:
+        forecast = fetch_nws_forecast(cfg["nws_office"], cfg["nws_gridx"], cfg["nws_gridy"])
+        best, best_diff = None, float("inf")
+        for period in forecast:
+            try:
+                start = datetime.fromisoformat(period["startTime"]).timestamp()
+                if abs(start - noon_ts) < best_diff:
+                    best_diff = abs(start - noon_ts)
+                    best = period
+            except Exception:
+                pass
+        if not best:
+            return {}
+        ws = best.get("windSpeed", "")
+        try:
+            wind_mph = float(ws.split()[0]) if ws else None
+        except Exception:
+            wind_mph = None
+        precip      = (best.get("probabilityOfPrecipitation") or {}).get("value") or 0
+        humidity    = (best.get("relativeHumidity") or {}).get("value")
+        sf          = best.get("shortForecast", "").lower()
+        if "overcast" in sf or ("cloudy" in sf and "partly" not in sf and "mostly" not in sf):
+            cloud_pct = 90
+        elif "mostly cloudy" in sf:
+            cloud_pct = 70
+        elif "partly cloudy" in sf or "partly sunny" in sf:
+            cloud_pct = 40
+        elif "mostly clear" in sf or "mostly sunny" in sf:
+            cloud_pct = 15
+        else:
+            cloud_pct = 5
+        return {
+            "temp_f":         float(best["temperature"]) if best.get("temperature") is not None else None,
+            "humidity":       int(humidity) if humidity is not None else None,
+            "pressure_mb":    None,
+            "wind_speed_mph": wind_mph,
+            "wind_deg":       None,
+            "precip_chance":  int(precip),
+            "cloud_cover":    cloud_pct,
+            "description":    best.get("shortForecast", ""),
+        }
+
+
 def compute_pressure_trend(location: str, current_mb: float) -> int:
     hist = _pressure_history.setdefault(location, [])
     hist.append(current_mb)
@@ -578,6 +682,7 @@ def build_date_response(location, target_date):
     wl            = fetch_noaa_water_level(cfg.get("water_level_id", cfg["id"]), target_date)
     sol           = compute_solunar(cfg["lat"], cfg["lon"], cfg["tz"], target_date)
     score, slabel = compute_fishing_score(sol, tides, target_date)
+    weather       = fetch_weather_for_date(cfg, target_date)
 
     highs = [t for t in tides if t.get("type", "").upper() == "H"]
     lows  = [t for t in tides if t.get("type", "").upper() == "L"]
@@ -620,6 +725,7 @@ def build_date_response(location, target_date):
             "moonset_unix":  sol["moonset_unix"],
         },
         "fishing": {"score": score, "label": slabel},
+        "weather": weather,
     }
 
 class QueryHandler(BaseHTTPRequestHandler):

@@ -4,7 +4,7 @@
 
 {% if logged %}
 <div class="alert alert-success alert-dismissible fade show" role="alert">
-  <i class="bi bi-check-circle-fill"></i> Catch logged with current conditions snapshot.
+  <i class="bi bi-check-circle-fill"></i> Catch logged with conditions snapshot.
   <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
 {% endif %}
@@ -72,7 +72,13 @@
             <textarea name="notes" class="form-control" rows="2" placeholder="bait used, technique, spot, etc."></textarea>
           </div>
 
-          <button type="submit" class="btn btn-primary w-100">
+          <div class="mb-3">
+            <label class="form-label">Date &amp; Time <small class="text-muted">(defaults to now — change to backdate or plan ahead)</small></label>
+            <input type="datetime-local" name="catch_datetime" id="catchDatetime" class="form-control"
+                   step="60">
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100" id="logBtn">
             <i class="bi bi-save"></i> Log Entry + Snapshot Conditions
           </button>
         </form>
@@ -84,7 +90,7 @@
   <div class="col-lg-6">
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-thermometer-half"></i> Current Conditions — {{ locations[selected] }}</span>
+        <span><i class="bi bi-thermometer-half"></i> Conditions — <span id="condLabel">Now</span> — {{ locations[selected] }}</span>
         {% if cond.fishing_score is not none %}
         <span class="badge score-badge
           {% if cond.fishing_score >= 7 %}bg-success
@@ -145,7 +151,7 @@
           </div>
         </div>
 
-        <div class="mt-3 text-muted small text-center">
+        <div class="mt-3 text-muted small text-center" id="condNote">
           These conditions will be auto-saved with your log entry.
           <button class="btn btn-sm btn-outline-secondary ms-2" onclick="refreshCond()">
             <i class="bi bi-arrow-clockwise"></i> Refresh
@@ -166,8 +172,102 @@ document.querySelectorAll('input[name="caught"]').forEach(r => {
   });
 });
 
+// Set datetime picker default to now (local time)
+(function() {
+  const dt = document.getElementById('catchDatetime');
+  if (!dt) return;
+  const now = new Date();
+  now.setSeconds(0, 0);
+  dt.value = now.toISOString().slice(0,16);
+  dt.addEventListener('change', onDateChange);
+})();
+
+function localDateStr() {
+  const dt = document.getElementById('catchDatetime');
+  return dt ? dt.value : '';          // "YYYY-MM-DDTHH:MM"
+}
+
+function isToday(dtStr) {
+  if (!dtStr) return true;
+  const picked = new Date(dtStr);
+  const now    = new Date();
+  return picked.toDateString() === now.toDateString();
+}
+
+async function onDateChange() {
+  const dtStr = localDateStr();
+  const loc   = new URLSearchParams(window.location.search).get('location') || 'freeport_tx';
+  const label = document.getElementById('condLabel');
+  const note  = document.getElementById('condNote');
+
+  if (isToday(dtStr)) {
+    label.textContent = 'Now';
+    note.innerHTML = 'These conditions will be auto-saved with your log entry. '
+      + '<button class="btn btn-sm btn-outline-secondary ms-2" onclick="refreshCond()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>';
+    refreshCond();
+    return;
+  }
+
+  const d = new Date(dtStr);
+  label.textContent = d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+  note.innerHTML = '<span class="text-info"><i class="bi bi-clock-history"></i> Fetching historical/forecast conditions…</span>';
+
+  try {
+    const r = await fetch(`/api/conditions/${loc}?date=${encodeURIComponent(dtStr)}`);
+    const cond = await r.json();
+    updateCondPanel(cond);
+    const isPast = d < new Date();
+    note.innerHTML = `<span class="text-info"><i class="bi bi-${isPast ? 'clock-history' : 'calendar-event'}"></i> `
+      + `${isPast ? 'Historical' : 'Forecast'} conditions for ${label.textContent} — will be saved with entry.</span>`;
+  } catch(e) {
+    note.innerHTML = '<span class="text-warning">Could not fetch conditions for that date — current conditions will be used.</span>';
+  }
+}
+
+function updateCondPanel(cond) {
+  const fmt = (v, unit='') => v != null ? (parseFloat(v).toFixed(1) + unit) : '—';
+  const set = (sel, val) => { const el = document.querySelector(sel); if(el) el.textContent = val; };
+
+  // Update pill <strong> elements by data attribute
+  document.querySelectorAll('.condition-pill').forEach(pill => {
+    const label = pill.querySelector('small')?.textContent?.trim();
+    const strong = pill.querySelector('strong');
+    if (!strong) return;
+    if (label === 'Tide Ht')   strong.textContent = fmt(cond.tide_height_ft, ' ft');
+    if (label === 'Water Lvl') strong.textContent = fmt(cond.water_level_ft, ' ft');
+    if (label === 'Pressure')  strong.textContent = fmt(cond.pressure_mb, ' mb');
+    if (label === 'Temp')      strong.textContent = fmt(cond.temp_f, '°F');
+    if (label === 'Wind')      strong.textContent = fmt(cond.wind_speed_mph, ' mph');
+    if (label === 'Humidity')  strong.textContent = fmt(cond.humidity, '%');
+    if (label === 'Precip %')  strong.textContent = fmt(cond.precip_chance, '%');
+    if (label === 'Moon')      strong.textContent = fmt(cond.moon_phase_pct, '%');
+    if (label === 'Pressure Trend') {
+      const t = cond.pressure_trend;
+      if (t == 1)       strong.innerHTML = '<span class="text-success">Rising ↑</span>';
+      else if (t == -1) strong.innerHTML = '<span class="text-danger">Falling ↓</span>';
+      else if (t != null) strong.textContent = 'Steady →';
+      else              strong.textContent = '—';
+    }
+    if (label === 'Solunar') {
+      const s = cond.solunar_period;
+      if (s === 'major')  strong.innerHTML = '<span class="text-warning">Major ★</span>';
+      else if (s === 'minor') strong.innerHTML = '<span class="text-info">Minor</span>';
+      else                strong.textContent = 'None';
+    }
+  });
+
+  // Score badge
+  const badge = document.querySelector('.score-badge');
+  if (badge && cond.fishing_score != null) {
+    const score = parseFloat(cond.fishing_score).toFixed(1);
+    badge.textContent = `Score ${score}/10`;
+    badge.className = 'badge score-badge ' +
+      (cond.fishing_score >= 7 ? 'bg-success' : cond.fishing_score >= 4 ? 'bg-warning text-dark' : 'bg-danger');
+  }
+}
+
 function refreshCond() {
-  location.reload();
+  window.location.reload();
 }
 </script>
 {% endblock %}

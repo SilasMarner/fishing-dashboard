@@ -8,7 +8,7 @@ import os
 import sqlite3
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, date
 from zoneinfo import ZoneInfo
 
 # import anthropic          # ── Anthropic/Claude (commented out; see run_ai_analysis below)
@@ -22,13 +22,15 @@ log = logging.getLogger("fish_logger")
 
 app = Flask(__name__)
 
-DB_PATH          = os.environ.get("DB_PATH", "/data/fish_log.db")
-PROMETHEUS_URL   = os.environ.get("PROMETHEUS_URL", "http://prometheus:9090")
-GROQ_KEY         = os.environ.get("GROQ_API_KEY", "")
-XAI_KEY          = os.environ.get("XAI_API_KEY", "")
-AI_PROVIDER      = os.environ.get("AI_PROVIDER", "groq").lower()  # "groq" or "xai"
-ANALYSIS_HOURS   = int(os.environ.get("ANALYSIS_INTERVAL_HOURS", "6"))
-PORT             = int(os.environ.get("PORT", "9879"))
+DB_PATH              = os.environ.get("DB_PATH", "/data/fish_log.db")
+PROMETHEUS_URL       = os.environ.get("PROMETHEUS_URL", "http://prometheus:9090")
+EXPORTER_QUERY_URL   = os.environ.get("EXPORTER_QUERY_URL", "http://localhost:9878")
+GROQ_KEY             = os.environ.get("GROQ_API_KEY", "")
+XAI_KEY              = os.environ.get("XAI_API_KEY", "")
+AI_PROVIDER          = os.environ.get("AI_PROVIDER", "groq").lower()  # "groq" or "xai"
+ANALYSIS_HOURS       = int(os.environ.get("ANALYSIS_INTERVAL_HOURS", "6"))
+PORT                 = int(os.environ.get("PORT", "9879"))
+APP_TZ               = ZoneInfo("America/Chicago")
 # ANTHROPIC_KEY  = os.environ.get("ANTHROPIC_API_KEY", "")   # ── uncomment to use Claude instead
 # GEMINI_KEY     = os.environ.get("GEMINI_API_KEY", "")      # ── uncomment to use Gemini instead
 
@@ -286,8 +288,59 @@ def get_conditions(location: str) -> dict:
                     break
 
     cond["solunar_period"] = solunar
-    cond["tide_stage"] = None  # would need direction comparison; left for future
+    cond["tide_stage"] = None
     return cond
+
+
+def get_conditions_for_date(location: str, target_dt: datetime) -> dict:
+    """Return conditions for any datetime. Uses Prometheus for today, exporter query for other dates."""
+    today = datetime.now(tz=APP_TZ).date()
+    if target_dt.date() == today:
+        return get_conditions(location)
+    try:
+        r = requests.get(
+            f"{EXPORTER_QUERY_URL}/query",
+            params={"location": location, "date": target_dt.strftime("%Y%m%d")},
+            timeout=15,
+        )
+        r.raise_for_status()
+        data = r.json()
+        wx   = data.get("weather", {})
+        sol  = data.get("solunar", {})
+        moon = data.get("moon", {})
+        fish = data.get("fishing", {})
+        ts   = target_dt.timestamp()
+        solunar = "none"
+        for key in ("major1", "major2"):
+            if sol.get(f"{key}_start") and sol.get(f"{key}_end"):
+                if sol[f"{key}_start"] <= ts <= sol[f"{key}_end"]:
+                    solunar = "major"
+                    break
+        if solunar == "none":
+            for key in ("minor1", "minor2"):
+                if sol.get(f"{key}_start") and sol.get(f"{key}_end"):
+                    if sol[f"{key}_start"] <= ts <= sol[f"{key}_end"]:
+                        solunar = "minor"
+                        break
+        return {
+            "tide_height_ft":  None,
+            "tide_stage":      None,
+            "water_level_ft":  data.get("water_level_ft"),
+            "pressure_mb":     wx.get("pressure_mb"),
+            "pressure_trend":  None,
+            "temp_f":          wx.get("temp_f"),
+            "wind_speed_mph":  wx.get("wind_speed_mph"),
+            "wind_deg":        wx.get("wind_deg"),
+            "precip_chance":   wx.get("precip_chance"),
+            "humidity":        wx.get("humidity"),
+            "cloud_cover":     wx.get("cloud_cover"),
+            "moon_phase_pct":  moon.get("illumination"),
+            "fishing_score":   fish.get("score"),
+            "solunar_period":  solunar,
+        }
+    except Exception as exc:
+        log.warning("Exporter query failed for %s %s: %s", location, target_dt.date(), exc)
+        return get_conditions(location)
 
 # ── AI analysis ────────────────────────────────────────────────────────────────
 TREND_LABEL = {"-1.0": "falling", "-1": "falling", "0.0": "steady", "0": "steady",
@@ -434,26 +487,37 @@ def index():
                            cond=cond,
                            logged=logged)
 
+def _parse_catch_dt(raw: str) -> datetime:
+    """Parse datetime-local string to timezone-aware datetime; fall back to now."""
+    try:
+        return datetime.strptime(raw, "%Y-%m-%dT%H:%M").replace(tzinfo=APP_TZ)
+    except Exception:
+        return datetime.now(tz=APP_TZ)
+
+
 @app.route("/log", methods=["POST"])
 def log_catch():
     f        = request.form
     location = f.get("location", "freeport_tx")
-    cond     = get_conditions(location)
+    catch_dt = _parse_catch_dt(f.get("catch_datetime", ""))
+    cond     = get_conditions_for_date(location, catch_dt)
 
-    size   = float(f["size_in"])   if f.get("size_in")   else None
+    size   = float(f["size_in"])    if f.get("size_in")    else None
     weight = float(f["weight_lbs"]) if f.get("weight_lbs") else None
     count  = int(f.get("fish_count") or 1)
 
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("""
             INSERT INTO fish_log (
+                logged_at,
                 location, species, caught, fish_count, size_in, weight_lbs, notes,
                 tide_height_ft, tide_stage, water_level_ft,
                 pressure_mb, pressure_trend, temp_f, wind_speed_mph, wind_deg,
                 precip_chance, humidity, cloud_cover,
                 solunar_period, moon_phase_pct, fishing_score
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
+            int(catch_dt.timestamp()),
             location, f.get("species"), 1 if f.get("caught") == "yes" else 0,
             count, size, weight, f.get("notes") or None,
             cond.get("tide_height_ft"), cond.get("tide_stage"), cond.get("water_level_ft"),
@@ -558,6 +622,13 @@ def api_analyze(location):
 
 @app.route("/api/conditions/<location>")
 def api_conditions(location):
+    date_str = request.args.get("date")
+    if date_str:
+        try:
+            target_dt = datetime.strptime(date_str, "%Y-%m-%dT%H:%M").replace(tzinfo=APP_TZ)
+            return jsonify(get_conditions_for_date(location, target_dt))
+        except ValueError:
+            pass
     return jsonify(get_conditions(location))
 
 @app.after_request
@@ -574,19 +645,22 @@ def api_log():
         return "", 204
     f        = request.form
     location = f.get("location", "freeport_tx")
-    cond     = get_conditions(location)
+    catch_dt = _parse_catch_dt(f.get("catch_datetime", ""))
+    cond     = get_conditions_for_date(location, catch_dt)
     size     = float(f["size_in"])    if f.get("size_in")    else None
     weight   = float(f["weight_lbs"]) if f.get("weight_lbs") else None
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("""
             INSERT INTO fish_log (
+                logged_at,
                 location, species, caught, fish_count, size_in, weight_lbs, notes,
                 tide_height_ft, tide_stage, water_level_ft,
                 pressure_mb, pressure_trend, temp_f, wind_speed_mph, wind_deg,
                 precip_chance, humidity, cloud_cover,
                 solunar_period, moon_phase_pct, fishing_score
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
+            int(catch_dt.timestamp()),
             location, f.get("species"), 1 if f.get("caught") == "yes" else 0,
             int(f.get("fish_count") or 1), size, weight, f.get("notes") or None,
             cond.get("tide_height_ft"), cond.get("tide_stage"), cond.get("water_level_ft"),
