@@ -6,14 +6,33 @@
   {% for key, name in locations.items() %}
   <li class="nav-item">
     <a class="nav-link {% if selected == key %}active{% endif %}"
-       href="/analysis?location={{ key }}">{{ name }}</a>
+       href="/analysis?location={{ key }}&window={{ window }}">{{ name }}</a>
   </li>
   {% endfor %}
 </ul>
 
+<!-- Window tabs -->
+<div class="d-flex gap-2 mb-3 flex-wrap">
+  {% for wkey, wlabel in windows.items() %}
+  <a href="/analysis?location={{ selected }}&window={{ wkey }}"
+     class="btn btn-sm {% if window == wkey %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+    {% if wkey == 'season' %}
+      <i class="bi bi-sun"></i>
+    {% elif wkey == 'month' %}
+      <i class="bi bi-calendar-month"></i>
+    {% elif wkey == 'year' %}
+      <i class="bi bi-calendar-range"></i>
+    {% else %}
+      <i class="bi bi-infinity"></i>
+    {% endif %}
+    {{ wlabel }}
+  </a>
+  {% endfor %}
+</div>
+
 <div class="card">
   <div class="card-header d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-robot"></i> AI Analysis — {{ locations[selected] }}</span>
+    <span><i class="bi bi-robot"></i> AI Analysis — {{ locations[selected] }} — {{ windows[window] }}</span>
     <button class="btn btn-sm btn-outline-primary" id="analyzeBtn" onclick="triggerAnalysis()">
       <i class="bi bi-arrow-repeat"></i> Run Now
     </button>
@@ -23,14 +42,17 @@
       <div class="text-muted small mb-3">
         <i class="bi bi-clock"></i> Generated: {{ latest['generated_at']|int | datetimeformat }}
         &nbsp;|&nbsp; Model: {{ latest['model'] }}
+        {% if latest['analysis_type'] and latest['analysis_type'] != window %}
+          &nbsp;|&nbsp; <span class="text-warning"><i class="bi bi-exclamation-triangle"></i> Showing most recent analysis — click Run Now to generate {{ windows[window] }} report</span>
+        {% endif %}
       </div>
       <div id="analysisContent" class="analysis-body"
            data-raw="{{ latest['content'] | e }}"></div>
     {% else %}
       <div class="text-center text-muted py-5">
         <i class="bi bi-robot" style="font-size:3rem"></i>
-        <p class="mt-3">No analysis yet for {{ locations[selected] }}.</p>
-        <p class="small">Log some catches first, then click <strong>Run Now</strong>.</p>
+        <p class="mt-3">No analysis yet for {{ locations[selected] }} — {{ windows[window] }}.</p>
+        <p class="small">Click <strong>Run Now</strong> to generate one.</p>
       </div>
     {% endif %}
 
@@ -47,30 +69,25 @@
 <script>
 // Markdown → HTML (headers, bold, italic, bullets, paragraphs)
 function markdownToHtml(md) {
-  // 1. Escape HTML entities
   let html = md
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-  // 2. Headers
   html = html
     .replace(/^#### (.+)$/gm, '<h6 class="mt-3">$1</h6>')
     .replace(/^### (.+)$/gm,  '<h5 class="mt-4">$1</h5>')
     .replace(/^## (.+)$/gm,   '<h4 class="mt-4 border-bottom border-secondary pb-1">$1</h4>')
     .replace(/^# (.+)$/gm,    '<h3 class="mt-4">$1</h3>');
 
-  // 3. Inline formatting
   html = html
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g,     '<em>$1</em>');
 
-  // 4. Bullet lists — collect consecutive list items into <ul>
   html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
   html = html.replace(/(<li>[\s\S]*?<\/li>)(\n<li>[\s\S]*?<\/li>)*/g,
     m => '<ul class="mb-2">' + m + '</ul>');
 
-  // 5. Paragraphs — split on blank lines, wrap non-block content in <p>
   const BLOCK = /^<(h[1-6]|ul|ol|blockquote)/;
   html = html
     .split(/\n{2,}/)
@@ -94,8 +111,10 @@ async function triggerAnalysis() {
   spinner.classList.remove('d-none');
 
   try {
-    const loc = new URLSearchParams(window.location.search).get('location') || 'freeport_tx';
-    const resp = await fetch('/api/analyze/' + loc, { method: 'POST' });
+    const params = new URLSearchParams(window.location.search);
+    const loc    = params.get('location') || 'freeport_tx';
+    const win    = params.get('window')   || 'all';
+    const resp = await fetch(`/api/analyze/${loc}?window=${win}`, { method: 'POST' });
     const data = await resp.json();
     if (data.status === 'ok') {
       window.location.reload();
@@ -111,7 +130,6 @@ async function triggerAnalysis() {
   }
 }
 
-// Render analysis content now that markdownToHtml is defined
 (function() {
   const el = document.getElementById('analysisContent');
   if (el && el.dataset.raw) {

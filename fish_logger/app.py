@@ -346,21 +346,67 @@ def get_conditions_for_date(location: str, target_dt: datetime) -> dict:
 TREND_LABEL = {"-1.0": "falling", "-1": "falling", "0.0": "steady", "0": "steady",
                "1.0": "rising", "1": "rising"}
 
-def run_ai_analysis(location: str) -> str:
+ANALYSIS_WINDOWS = {
+    "all":    "All Time",
+    "year":   "Past Year",
+    "month":  "Past Month",
+    "season": "This Season",
+}
+
+def _season_start_ts() -> int:
+    now = datetime.now(tz=ZoneInfo("America/Chicago"))
+    m = now.month
+    if m in (3, 4, 5):
+        start = datetime(now.year, 3, 1, tzinfo=ZoneInfo("America/Chicago"))
+    elif m in (6, 7, 8):
+        start = datetime(now.year, 6, 1, tzinfo=ZoneInfo("America/Chicago"))
+    elif m in (9, 10, 11):
+        start = datetime(now.year, 9, 1, tzinfo=ZoneInfo("America/Chicago"))
+    else:
+        year = now.year if now.month == 12 else now.year - 1
+        start = datetime(year, 12, 1, tzinfo=ZoneInfo("America/Chicago"))
+    return int(start.timestamp())
+
+def _season_name() -> str:
+    m = datetime.now().month
+    if m in (3, 4, 5):   return "Spring"
+    if m in (6, 7, 8):   return "Summer"
+    if m in (9, 10, 11): return "Fall"
+    return "Winter"
+
+def run_ai_analysis(location: str, window: str = "all") -> str:
     if AI_PROVIDER == "xai" and not XAI_KEY:
         return "AI analysis unavailable — XAI_API_KEY not set."
     if AI_PROVIDER != "xai" and not GROQ_KEY:
         return "AI analysis unavailable — GROQ_API_KEY not set."
 
+    now_ts = int(datetime.now(tz=ZoneInfo("America/Chicago")).timestamp())
+    if window == "month":
+        cutoff = now_ts - 30 * 86400
+        sql, params = ("SELECT * FROM fish_log WHERE location=? AND logged_at>=? ORDER BY logged_at DESC LIMIT 2000",
+                       (location, cutoff))
+        window_desc = "the past 30 days"
+    elif window == "year":
+        cutoff = now_ts - 365 * 86400
+        sql, params = ("SELECT * FROM fish_log WHERE location=? AND logged_at>=? ORDER BY logged_at DESC LIMIT 2000",
+                       (location, cutoff))
+        window_desc = "the past year"
+    elif window == "season":
+        cutoff = _season_start_ts()
+        sql, params = ("SELECT * FROM fish_log WHERE location=? AND logged_at>=? ORDER BY logged_at DESC LIMIT 2000",
+                       (location, cutoff))
+        window_desc = f"this {_season_name()} season"
+    else:
+        sql, params = ("SELECT * FROM fish_log WHERE location=? ORDER BY logged_at DESC LIMIT 2000",
+                       (location,))
+        window_desc = "all time"
+
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            "SELECT * FROM fish_log WHERE location=? ORDER BY logged_at DESC LIMIT 300",
-            (location,),
-        ).fetchall()
+        rows = conn.execute(sql, params).fetchall()
 
     if not rows:
-        return f"No fishing data logged yet for {LOCATION_NAMES.get(location, location)}."
+        return f"No fishing data logged yet for {LOCATION_NAMES.get(location, location)} ({window_desc})."
 
     tz = ZoneInfo("America/Chicago")
     entries = []
@@ -390,7 +436,7 @@ def run_ai_analysis(location: str) -> str:
     location_name = LOCATION_NAMES.get(location, location)
     prompt = f"""You are an expert fishing guide and data analyst for Gulf Coast fishing at {location_name}.
 
-Analyze {len(entries)} fishing log entries and provide a thorough report with these sections:
+Analyze {len(entries)} fishing log entries ({window_desc}) and provide a thorough report with these sections:
 
 ## Conditions That Produce Catches
 Which combinations of barometric pressure (and trend), tide stage/height, solunar period, temperature, and wind correlate most strongly with success vs. failure? Cite specific numbers where sample size allows (e.g. "8 of 10 catches occurred when pressure was rising above 1015 mb").
@@ -452,12 +498,12 @@ Data:
     #                            messages=[{"role": "user", "content": prompt}])
     # return _msg.content[0].text
 
-def save_analysis(location: str, content: str,
+def save_analysis(location: str, content: str, window: str = "all",
                   model: str = "grok-3-mini" if os.environ.get("AI_PROVIDER","groq")=="xai" else "llama-3.3-70b-versatile"):
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
             "INSERT INTO ai_analysis (location, analysis_type, content, model) VALUES (?,?,?,?)",
-            (location, "historical", content, model),
+            (location, window, content, model),
         )
         conn.commit()
 
@@ -467,8 +513,8 @@ def analysis_scheduler():
         for location in SPECIES:
             try:
                 log.info("Running AI analysis for %s", location)
-                content = run_ai_analysis(location)
-                save_analysis(location, content)
+                content = run_ai_analysis(location, window="all")
+                save_analysis(location, content, window="all")
                 log.info("AI analysis saved for %s", location)
             except Exception as exc:
                 log.error("AI analysis failed for %s: %s", location, exc)
@@ -547,15 +593,25 @@ def history():
 @app.route("/analysis")
 def analysis():
     location = request.args.get("location", "freeport_tx")
+    window   = request.args.get("window", "all")
+    if window not in ANALYSIS_WINDOWS:
+        window = "all"
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         latest = conn.execute(
-            "SELECT * FROM ai_analysis WHERE location=? ORDER BY generated_at DESC LIMIT 1",
-            (location,),
+            "SELECT * FROM ai_analysis WHERE location=? AND analysis_type=? ORDER BY generated_at DESC LIMIT 1",
+            (location, window),
         ).fetchone()
+        if latest is None and window != "all":
+            latest = conn.execute(
+                "SELECT * FROM ai_analysis WHERE location=? ORDER BY generated_at DESC LIMIT 1",
+                (location,),
+            ).fetchone()
     return render_template("analysis.html",
                            locations=LOCATION_NAMES,
                            selected=location,
+                           window=window,
+                           windows=ANALYSIS_WINDOWS,
                            latest=latest)
 
 @app.route("/api/recent")
@@ -600,22 +656,29 @@ def bulk_delete_log():
 
 @app.route("/api/analysis/<location>")
 def api_analysis(location):
+    window = request.args.get("window", "all")
+    if window not in ANALYSIS_WINDOWS:
+        window = "all"
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         row = conn.execute(
-            "SELECT * FROM ai_analysis WHERE location=? ORDER BY generated_at DESC LIMIT 1",
-            (location,),
+            "SELECT * FROM ai_analysis WHERE location=? AND analysis_type=? ORDER BY generated_at DESC LIMIT 1",
+            (location, window),
         ).fetchone()
     if row:
         return jsonify({"status":"ok","content":row["content"],
-                        "generated":row["generated_at"],"model":row["model"]})
-    return jsonify({"status":"ok","content":None})
+                        "generated":row["generated_at"],"model":row["model"],
+                        "window":window})
+    return jsonify({"status":"ok","content":None,"window":window})
 
 @app.route("/api/analyze/<location>", methods=["POST"])
 def api_analyze(location):
+    window = request.args.get("window", "all")
+    if window not in ANALYSIS_WINDOWS:
+        window = "all"
     try:
-        content = run_ai_analysis(location)
-        save_analysis(location, content)
+        content = run_ai_analysis(location, window)
+        save_analysis(location, content, window)
         return jsonify({"status": "ok", "content": content})
     except Exception as exc:
         return jsonify({"status": "error", "message": str(exc)}), 500
