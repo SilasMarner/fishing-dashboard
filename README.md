@@ -151,12 +151,29 @@ curl -s http://localhost:9090/-/ready          # prometheus: should return "Prom
 
 ### 6 — Import the Grafana dashboard
 
+The dashboard JSON is included at `grafana/fishing-tides-solunar-dashboard.json`. Two placeholders must be replaced before importing:
+
+| Placeholder | Replace with |
+|---|---|
+| `YOUR_HOST_IP` | Your host's IP or hostname (e.g. `10.0.0.13`) |
+| `YOUR_LOKI_DATASOURCE_UID` | Your Grafana Loki datasource UID (find it under **Connections → Data sources → Loki → Settings**, copy the UID from the URL) — only required if you use the Loki-backed Tides panel |
+
+**Quick one-liner to patch and save a local copy:**
+
+```bash
+sed -e 's/YOUR_HOST_IP/10.0.0.13/g' \
+    -e 's/YOUR_LOKI_DATASOURCE_UID/YOUR_ACTUAL_LOKI_UID/g' \
+    grafana/fishing-tides-solunar-dashboard.json > /tmp/fishing-dashboard-import.json
+```
+
+Then import:
+
 1. Open Grafana at `http://<your-host>:3000`
 2. Log in with `admin` / the password you set in `.env`
 3. Go to **Dashboards → Import**
-4. Upload `grafana/fishing-tides-solunar-dashboard.json` (export this from your existing Grafana instance)
+4. Upload `/tmp/fishing-dashboard-import.json`
 
-> **Note:** The dashboard JSON is not included in this repo because it references your specific Prometheus datasource UID and host IP. Export it from Grafana via **Dashboard settings → JSON Model → Copy to clipboard**, then save it as `grafana/fishing-tides-solunar-dashboard.json`.
+> **Datasources required:** `prometheus` (Prometheus), `fish-sqlite` (frser-sqlite-datasource — auto-provisioned from `grafana/provisioning/datasources/fish-sqlite.yaml`), and optionally a Loki datasource for the tide chart panel.
 
 ---
 
