@@ -8,8 +8,9 @@ scrape_configs:
   # Metrics port: 9877  |  On-demand query port: 9878
   - job_name: fishing_exporter
     static_configs:
-      # Replace with your host's IP if Prometheus is in Docker
-      - targets: ['host.docker.internal:9877']
+      # host.docker.internal does not resolve on Linux Docker — use your host's actual IP.
+      # On Mac/Windows Docker Desktop, host.docker.internal works fine.
+      - targets: ['10.0.0.13:9877']  # change to your host IP
         labels:
           instance: fishing-host
 
