@@ -17,7 +17,7 @@ LOCATIONS = [
     "matagorda_tx",
 ]
 
-def shot(page, url, name, wait_ms=1200):
+def shot(page, url, name, wait_ms=2000):
     page.goto(url)
     page.wait_for_load_state("networkidle")
     time.sleep(wait_ms / 1000)
