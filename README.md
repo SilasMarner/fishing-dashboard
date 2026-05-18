@@ -64,6 +64,26 @@ Live tides, weather, solunar windows, fishing score gauge, moon phase, and tide 
 
 Click the date arrows or picker in the tide panel to jump to any date. Past dates pull NWS historical observations (actual temp, pressure, wind, humidity, clouds); future dates (≤7 days) pull NWS hourly forecast. Weather, tide chart, solunar windows, and fishing score all update for the selected date — no page reload needed.
 
+### Station Tide Lookup — Any NOAA Station
+
+Search any of the 3,450 NOAA tide prediction stations directly in Grafana or on the standalone Tides page — no exporter changes needed.
+
+**Grafana panel — search and load any station:**
+
+| Search dropdown | Tide chart loaded |
+|---|---|
+| ![Grafana Station Search Typing](docs/screenshots/grafana_station_search_typing.png) | ![Grafana Station Search Loaded](docs/screenshots/grafana_station_search_loaded.png) |
+
+The Station Tide Lookup panel sits at the top of the dashboard. Type any city, station name, or state abbreviation — results show station ID and coordinates. Select a result to render the same IDW tide curve, Hi/Lo markers, and events table used by the tracked-station panels. Date navigation works the same way.
+
+**Tides web page (`/tides`) — station picker + quick search:**
+
+| Station selected | Search dropdown |
+|---|---|
+| ![Tides Station Selected](docs/screenshots/tides_station_search.png) | ![Tides Search Dropdown](docs/screenshots/tides_search_dropdown.png) |
+
+The `/tides` page at `http://<host>:9879/tides` provides the same functionality as a standalone web UI: quick-access buttons for all tracked stations plus a fuzzy-search box for any NOAA station. Bookmarkable URLs (`/tides?id=8771450&name=Galveston%2C+TX`) preserve the selected station on reload.
+
 ---
 
 ## Architecture
@@ -202,6 +222,7 @@ The `fish-logger` app runs on port **9879** and has two interfaces:
 | `http://<host>:9879/` | Full web UI — log catches, view history, AI analysis |
 | `http://<host>:9879/embed` | Stripped-down iframe version embedded in Grafana |
 | `http://<host>:9879/analysis?location=freeport_tx` | AI analysis page |
+| `http://<host>:9879/tides` | Station tide lookup — search any of 3,450 NOAA stations |
 
 ### Logging a catch
 
@@ -251,6 +272,8 @@ Or click **Run Now** in the Analysis tab of the web UI.
 | `GET` | `/api/analysis/<location>` | Latest AI analysis for a location |
 | `POST` | `/api/analyze/<location>` | Trigger immediate AI analysis |
 | `GET` | `/api/conditions/<location>` | Current Prometheus conditions snapshot |
+| `GET` | `/api/stations/search?q=<text>` | Fuzzy-search NOAA tide stations (cached 24 h) |
+| `GET` | `/api/tides/station?id=<noaa_id>&date=YYYY-MM-DD` | NOAA tide predictions proxy for any station |
 
 ---
 
