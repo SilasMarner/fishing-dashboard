@@ -13,9 +13,11 @@ services:
 
   # ─── Fish Logger ─────────────────────────────────────────────────────────────
   # Flask app: catch logging, AI analysis, Grafana embed page
+  # NOTE: Production runs inside the loki-promtail Portainer stack (stack 27).
+  # container_name removed to avoid stomping the production container if this
+  # compose is run for dev/testing.
   fish-logger:
     image: fish-logger:latest
-    container_name: fish-logger
     build:
       context: ./fish_logger
     restart: unless-stopped
@@ -40,13 +42,12 @@ services:
 
   # ─── Prometheus ───────────────────────────────────────────────────────────────
   # Stores metrics from the fishing_exporter systemd service (port 9877)
+  # NOTE: Production prometheus is in the loki-promtail Portainer stack (stack 27).
+  # container_name and host port removed — dev-only; access via service name inside compose.
   prometheus:
     image: prom/prometheus:latest
-    container_name: prometheus
     restart: unless-stopped
     user: "0:0"
-    ports:
-      - "9090:9090"
     volumes:
       - ${PROMETHEUS_CONFIG_DIR:-./prometheus}:/etc/prometheus
       - ${PROMETHEUS_DATA_DIR:-./prometheus/data}:/prometheus
@@ -62,9 +63,10 @@ services:
 
   # ─── Grafana ─────────────────────────────────────────────────────────────────
   # Dashboard UI — embeds the fish-logger /embed page in an iframe panel
+  # NOTE: Production grafana is in the loki-promtail Portainer stack (stack 27).
+  # container_name and host port removed — dev-only.
   grafana:
     image: grafana/grafana:latest
-    container_name: grafana
     restart: unless-stopped
     user: "0:0"
     environment:
@@ -76,8 +78,6 @@ services:
       - GF_SECURITY_ALLOW_EMBEDDING=true
       - GF_SECURITY_CONTENT_SECURITY_POLICY=false
       - GF_INSTALL_PLUGINS=frser-sqlite-datasource
-    ports:
-      - "3000:3000"
     volumes:
       - ${GRAFANA_DATA_DIR:-./grafana/data}:/var/lib/grafana
       - ${GRAFANA_PROVISIONING_DIR:-./grafana/provisioning}:/etc/grafana/provisioning
