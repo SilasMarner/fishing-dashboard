@@ -91,6 +91,8 @@ services:
 networks:
   monitoring:
     driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: "9000"
   grafana_net:
     external: true
     name: loki-promtail_monitoring
