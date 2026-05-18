@@ -831,6 +831,243 @@ def api_tides_station():
         log.warning("NOAA tide fetch failed for station %s: %s", station_id, exc)
         return jsonify({"error": str(exc)}), 502
 
+@app.route("/api/weather")
+def api_weather():
+    """Fetch NWS weather for arbitrary lat/lng — used by the Grafana station search panel."""
+    lat_s  = request.args.get("lat", "").strip()
+    lng_s  = request.args.get("lng", "").strip()
+    date_s = request.args.get("date", datetime.now(tz=APP_TZ).strftime("%Y-%m-%d"))
+    if not lat_s or not lng_s:
+        return jsonify({"error": "lat and lng required"}), 400
+    try:
+        lat_f    = float(lat_s)
+        lng_f    = float(lng_s)
+        date_obj = datetime.strptime(date_s, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"error": "invalid parameters"}), 400
+
+    try:
+        grid = _get_nws_grid(lat_f, lng_f)
+    except Exception as exc:
+        return jsonify({"error": "NWS grid lookup failed: " + str(exc)}), 502
+
+    if not grid:
+        return jsonify({"error": "Location outside NWS coverage area"}), 404
+
+    try:
+        wx = _fetch_nws_weather_for_date(grid, date_obj)
+    except Exception as exc:
+        return jsonify({"error": "Weather fetch failed: " + str(exc)}), 502
+
+    return jsonify(wx)
+
+
+# ── NWS grid cache: {"{lat},{lng}" -> {office,gridX,gridY,obs_station}} ──────
+_nws_grid_cache: dict = {}
+_nws_grid_lock  = threading.Lock()
+NWS_UA = {"User-Agent": "FishingDashboard/1.0 (fishing-dashboard@localhost)"}
+
+
+def _get_nws_grid(lat: float, lng: float) -> dict | None:
+    key = f"{lat:.4f},{lng:.4f}"
+    with _nws_grid_lock:
+        if key in _nws_grid_cache:
+            return _nws_grid_cache[key]
+
+    try:
+        r = requests.get(
+            f"https://api.weather.gov/points/{lat:.4f},{lng:.4f}",
+            headers=NWS_UA, timeout=12,
+        )
+        if r.status_code == 404:
+            return None
+        r.raise_for_status()
+        props = r.json().get("properties", {})
+        office = props.get("cwa")
+        gridX  = props.get("gridX")
+        gridY  = props.get("gridY")
+        stations_url = props.get("observationStations")
+        if not (office and gridX is not None and gridY is not None):
+            return None
+
+        # Get nearest obs station
+        obs_station = None
+        if stations_url:
+            try:
+                rs = requests.get(stations_url, headers=NWS_UA, timeout=10)
+                rs.raise_for_status()
+                feats = rs.json().get("features", [])
+                if feats:
+                    obs_station = feats[0]["properties"]["stationIdentifier"]
+            except Exception:
+                pass
+
+        grid = {"office": office, "gridX": gridX, "gridY": gridY, "obs_station": obs_station}
+        with _nws_grid_lock:
+            _nws_grid_cache[key] = grid
+        return grid
+    except Exception as exc:
+        log.warning("NWS /points lookup failed for %s,%s: %s", lat, lng, exc)
+        return None
+
+
+def _nws_val(obj):
+    if obj is None:
+        return None
+    if isinstance(obj, dict):
+        v = obj.get("value")
+        return None if v is None else float(v)
+    return float(obj)
+
+
+def _fetch_nws_weather_for_date(grid: dict, target: date) -> dict:
+    today       = date.today()
+    obs_station = grid.get("obs_station")
+    office, gx, gy = grid["office"], grid["gridX"], grid["gridY"]
+
+    # ── Helper: convert C→F ──────────────────────────────────────────────
+    def c_to_f(c):
+        return round(c * 9 / 5 + 32, 1) if c is not None else None
+
+    def pa_to_mb(pa):
+        return round(pa / 100, 1) if pa is not None else None
+
+    def kph_to_mph(k):
+        return round(k * 0.621371, 1) if k is not None else None
+
+    # ── Feels-like (wind chill / heat index) ────────────────────────────
+    def feels_like(temp_f, wind_mph, humidity):
+        if temp_f is None:
+            return None
+        if wind_mph and temp_f <= 50 and wind_mph >= 3:
+            return round(35.74 + 0.6215 * temp_f
+                         - 35.75 * wind_mph ** 0.16
+                         + 0.4275 * temp_f * wind_mph ** 0.16, 1)
+        if humidity and temp_f >= 80:
+            hi = (-42.379 + 2.04901523 * temp_f + 10.14333127 * humidity
+                  - 0.22475541 * temp_f * humidity - 0.00683783 * temp_f ** 2
+                  - 0.05481717 * humidity ** 2 + 0.00122874 * temp_f ** 2 * humidity
+                  + 0.00085282 * temp_f * humidity ** 2
+                  - 0.00000199 * temp_f ** 2 * humidity ** 2)
+            return round(hi, 1)
+        return round(temp_f, 1)
+
+    # ── Cloud % from okta layers ────────────────────────────────────────
+    okta = {"FEW": 19, "SCT": 44, "BKN": 75, "OVC": 100, "VV": 100}
+
+    # ── TODAY / PAST: use observation ───────────────────────────────────
+    if target <= today and obs_station:
+        try:
+            r = requests.get(
+                f"https://api.weather.gov/stations/{obs_station}/observations/latest",
+                headers=NWS_UA, timeout=12,
+            )
+            r.raise_for_status()
+            obs = r.json().get("properties", {})
+            temp_c   = _nws_val(obs.get("temperature"))
+            temp_f   = c_to_f(temp_c)
+            hum      = _nws_val(obs.get("relativeHumidity"))
+            hum      = round(hum) if hum is not None else None
+
+            # pressure: prefer seaLevelPressure, fall back to barometricPressure
+            pres_pa  = _nws_val(obs.get("seaLevelPressure"))
+            if pres_pa is None:
+                pres_pa = _nws_val(obs.get("barometricPressure"))
+            pres_mb  = pa_to_mb(pres_pa)
+
+            ws_obj   = obs.get("windSpeed")
+            ws_val   = _nws_val(ws_obj)
+            ws_unit  = (ws_obj or {}).get("unitCode", "") if isinstance(ws_obj, dict) else ""
+            if ws_val is not None:
+                wind_mph = kph_to_mph(ws_val) if "km" in ws_unit else round(ws_val * 2.23694, 1)
+            else:
+                wind_mph = None
+
+            wind_deg = _nws_val(obs.get("windDirection"))
+            wind_deg = round(wind_deg) if wind_deg is not None else None
+
+            cloud_pct = 0
+            for layer in obs.get("cloudLayers", []):
+                cloud_pct = max(cloud_pct, okta.get(layer.get("amount", ""), 0))
+
+            vis_m  = _nws_val(obs.get("visibility"))
+            vis_mi = round(vis_m * 0.000621371, 1) if vis_m is not None else None
+
+            desc = obs.get("textDescription", "")
+
+            return {
+                "temp_f":     temp_f,
+                "feels_f":    feels_like(temp_f, wind_mph, hum),
+                "pressure_mb": pres_mb,
+                "humidity":   hum,
+                "wind_mph":   wind_mph,
+                "wind_deg":   wind_deg,
+                "precip_pct": 0,
+                "cloud_pct":  cloud_pct,
+                "vis_mi":     vis_mi,
+                "description": desc,
+            }
+        except Exception as exc:
+            log.warning("NWS obs fetch failed %s: %s", obs_station, exc)
+
+    # ── FUTURE (≤7 days): hourly forecast ──────────────────────────────
+    try:
+        r = requests.get(
+            f"https://api.weather.gov/gridpoints/{office}/{gx},{gy}/forecast/hourly",
+            headers=NWS_UA, timeout=12,
+        )
+        r.raise_for_status()
+        periods = r.json().get("properties", {}).get("periods", [])
+        noon_dt = datetime(target.year, target.month, target.day, 12)
+        best, best_diff = None, float("inf")
+        for p in periods:
+            try:
+                start = datetime.fromisoformat(p["startTime"].replace("Z", "+00:00"))
+                start = start.replace(tzinfo=None)
+                diff  = abs((start - noon_dt).total_seconds())
+                if diff < best_diff:
+                    best_diff, best = diff, p
+            except Exception:
+                pass
+        if not best:
+            return {}
+        ws_str = best.get("windSpeed", "")
+        try:
+            wind_mph = float(ws_str.split()[0]) if ws_str else None
+        except Exception:
+            wind_mph = None
+        sf = best.get("shortForecast", "").lower()
+        if "overcast" in sf or ("cloudy" in sf and "partly" not in sf and "mostly" not in sf):
+            cloud_pct = 90
+        elif "mostly cloudy" in sf:
+            cloud_pct = 70
+        elif "partly" in sf:
+            cloud_pct = 40
+        elif "mostly clear" in sf or "mostly sunny" in sf:
+            cloud_pct = 15
+        else:
+            cloud_pct = 5
+        temp_f   = float(best["temperature"]) if best.get("temperature") is not None else None
+        hum      = (best.get("relativeHumidity") or {}).get("value")
+        hum      = int(hum) if hum is not None else None
+        precip   = (best.get("probabilityOfPrecipitation") or {}).get("value") or 0
+        return {
+            "temp_f":      temp_f,
+            "feels_f":     feels_like(temp_f, wind_mph, hum),
+            "pressure_mb": None,
+            "humidity":    hum,
+            "wind_mph":    wind_mph,
+            "wind_deg":    None,
+            "precip_pct":  int(precip),
+            "cloud_pct":   cloud_pct,
+            "vis_mi":      None,
+            "description": best.get("shortForecast", ""),
+        }
+    except Exception as exc:
+        log.warning("NWS forecast fetch failed %s/%s,%s: %s", office, gx, gy, exc)
+        return {}
+
+
 @app.route("/embed")
 def embed():
     """Self-contained log form for Grafana iframe — no navbar, pure AJAX, no page navigation."""
