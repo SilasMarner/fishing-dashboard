@@ -70,6 +70,8 @@ Search any of the 3,450 NOAA tide prediction stations directly in Grafana or on 
 
 **Grafana panel — search and load any station:**
 
+![Station Search Panel](docs/screenshots/grafana_station_search_top.png)
+
 | Search dropdown | Station loaded — tide chart + weather |
 |---|---|
 | ![Grafana Station Search Typing](docs/screenshots/grafana_station_search_typing.png) | ![Grafana Station Search Loaded](docs/screenshots/grafana_station_search_loaded.png) |
