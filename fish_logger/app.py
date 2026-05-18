@@ -158,6 +158,43 @@ LOCATION_NAMES = {
     "matagorda_tx":   "Matagorda TX",
 }
 
+# NOAA tide station IDs matching the exporter's STATIONS dict
+NOAA_TIDE_STATION_IDS = {
+    "freeport_tx":    "8772447",
+    "padre_island_tx": "8779770",
+    "pensacola_fl":   "8729840",
+    "sargent_tx":     "8772985",
+    "matagorda_tx":   "8773146",
+}
+
+# ── NOAA station list cache (all tide prediction stations, refreshed daily) ────
+_noaa_stations: list = []
+_noaa_stations_ts: float = 0.0
+_noaa_lock = threading.Lock()
+
+def _get_noaa_stations() -> list:
+    global _noaa_stations, _noaa_stations_ts
+    now = time.time()
+    if _noaa_stations and now - _noaa_stations_ts < 86400:
+        return _noaa_stations
+    with _noaa_lock:
+        if _noaa_stations and now - _noaa_stations_ts < 86400:
+            return _noaa_stations
+        r = requests.get(
+            "https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations.json",
+            params={"type": "tidepredictions", "units": "english"},
+            timeout=15,
+        )
+        r.raise_for_status()
+        _noaa_stations = [
+            {"id": s["id"], "name": s["name"], "state": s.get("state", ""),
+             "lat": s.get("lat"), "lng": s.get("lng")}
+            for s in r.json().get("stations", [])
+        ]
+        _noaa_stations_ts = now
+        log.info("Loaded %d NOAA tide stations", len(_noaa_stations))
+        return _noaa_stations
+
 # ── Database ───────────────────────────────────────────────────────────────────
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
@@ -734,6 +771,65 @@ def api_log():
         ))
         conn.commit()
     return jsonify({"status": "ok"})
+
+@app.route("/tides")
+def tides():
+    today = datetime.now(tz=APP_TZ).strftime("%Y-%m-%d")
+    return render_template("tides.html", locations=LOCATION_NAMES,
+                           station_ids=NOAA_TIDE_STATION_IDS, today=today)
+
+@app.route("/api/stations/search")
+def api_stations_search():
+    q = request.args.get("q", "").strip().lower()
+    if len(q) < 2:
+        return jsonify([])
+    try:
+        stations = _get_noaa_stations()
+    except Exception as exc:
+        log.warning("NOAA station list fetch failed: %s", exc)
+        return jsonify({"error": "Could not load NOAA station list"}), 502
+    results = [
+        s for s in stations
+        if q in s["name"].lower() or q in s.get("state", "").lower()
+    ][:20]
+    return jsonify(results)
+
+@app.route("/api/tides/station")
+def api_tides_station():
+    station_id = request.args.get("id", "").strip()
+    date_str   = request.args.get("date", datetime.now(tz=APP_TZ).strftime("%Y-%m-%d"))
+    if not station_id:
+        return jsonify({"error": "station id required"}), 400
+    try:
+        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"error": "invalid date, expected YYYY-MM-DD"}), 400
+    noaa_date = date_obj.strftime("%Y%m%d")
+    try:
+        r = requests.get(
+            "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter",
+            params={
+                "product":     "predictions",
+                "station":     station_id,
+                "datum":       "MLLW",
+                "time_zone":   "lst_ldt",
+                "interval":    "hilo",
+                "units":       "english",
+                "application": "fishing_dashboard",
+                "format":      "json",
+                "begin_date":  noaa_date,
+                "end_date":    noaa_date,
+            },
+            timeout=10,
+        )
+        r.raise_for_status()
+        data = r.json()
+        if "error" in data:
+            return jsonify({"error": data["error"].get("message", "NOAA returned an error")}), 400
+        return jsonify({"predictions": data.get("predictions", [])})
+    except Exception as exc:
+        log.warning("NOAA tide fetch failed for station %s: %s", station_id, exc)
+        return jsonify({"error": str(exc)}), 502
 
 @app.route("/embed")
 def embed():
