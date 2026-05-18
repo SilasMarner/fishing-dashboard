@@ -70,11 +70,11 @@ Search any of the 3,450 NOAA tide prediction stations directly in Grafana or on 
 
 **Grafana panel — search and load any station:**
 
-| Search dropdown | Tide chart loaded |
+| Search dropdown | Station loaded — tide chart + weather |
 |---|---|
 | ![Grafana Station Search Typing](docs/screenshots/grafana_station_search_typing.png) | ![Grafana Station Search Loaded](docs/screenshots/grafana_station_search_loaded.png) |
 
-The Station Tide Lookup panel sits at the top of the dashboard. Type any city, station name, or state abbreviation — results show station ID and coordinates. Select a result to render the same IDW tide curve, Hi/Lo markers, and events table used by the tracked-station panels. Date navigation works the same way.
+The Station Tide Lookup panel sits at the top of the dashboard. Type any city, station name, or state abbreviation — results show station ID and coordinates. Select a result to render the full view: weather strip (temp, feels-like, pressure, wind, precip, humidity, clouds), barometer bar with fishing hint, IDW tide curve, Hi/Lo markers, and events table — the same layout as the tracked-station panels. Date navigation works the same way.
 
 **Tides web page (`/tides`) — station picker + quick search:**
 
