@@ -125,6 +125,10 @@ wx_visibility    = Gauge("fishing_weather_visibility_miles",   "Visibility miles
 wx_dewpoint      = Gauge("fishing_weather_dewpoint_f",         "Dewpoint F",                                  ["location"])
 wx_info          = Info("fishing_weather",                     "Weather description and trend",               ["location"])
 
+# NOAA station sensor observations
+noaa_water_temp_f = Gauge("fishing_noaa_water_temp_f", "Water temperature F from NOAA sensor",  ["location"])
+noaa_salinity_ppt = Gauge("fishing_noaa_salinity_ppt", "Salinity ppt from NOAA sensor",         ["location"])
+
 # Pressure history for trend calculation
 _pressure_history: dict[str, list[float]] = {}
 
@@ -520,6 +524,21 @@ def fetch_noaa_water_level(station_id, target_date=None):
         except:
             return None
 
+def fetch_noaa_sensor(station_id: str, product: str):
+    """Fetch latest NOAA station observation for a single product; returns float or None."""
+    params = {
+        "date": "latest", "station": station_id, "product": product,
+        "units": "english", "time_zone": "lst_ldt",
+        "application": "fishing_dashboard", "format": "json",
+    }
+    try:
+        r = requests.get(NOAA_API, params=params, timeout=10)
+        r.raise_for_status()
+        data = r.json().get("data", [])
+        return float(data[-1]["v"]) if data else None
+    except Exception:
+        return None
+
 # ── Solunar ────────────────────────────────────────────────────────────────────
 def get_moon_phase_name(illumination_pct):
     """Approximate phase name from illumination percentage."""
@@ -683,6 +702,8 @@ def build_date_response(location, target_date):
     sol           = compute_solunar(cfg["lat"], cfg["lon"], cfg["tz"], target_date)
     score, slabel = compute_fishing_score(sol, tides, target_date)
     weather       = fetch_weather_for_date(cfg, target_date)
+    water_temp    = fetch_noaa_sensor(cfg["id"], "water_temperature") if target_date == date.today() else None
+    salinity      = fetch_noaa_sensor(cfg["id"], "salinity")          if target_date == date.today() else None
 
     highs = [t for t in tides if t.get("type", "").upper() == "H"]
     lows  = [t for t in tides if t.get("type", "").upper() == "L"]
@@ -726,6 +747,10 @@ def build_date_response(location, target_date):
         },
         "fishing": {"score": score, "label": slabel},
         "weather": weather,
+        "water_conditions": {
+            "water_temp_f": water_temp,
+            "salinity_ppt": salinity,
+        },
     }
 
 class QueryHandler(BaseHTTPRequestHandler):
@@ -788,6 +813,13 @@ def collect():
         wl = fetch_noaa_water_level(cfg.get("water_level_id", cfg["id"]))
         if wl is not None:
             water_level_ft.labels(label).set(wl)
+
+        # NOAA station sensor observations (water temp + salinity where available)
+        wt = fetch_noaa_sensor(cfg["id"], "water_temperature")
+        sal = fetch_noaa_sensor(cfg["id"], "salinity")
+        if wt  is not None: noaa_water_temp_f.labels(label).set(wt)
+        if sal is not None: noaa_salinity_ppt.labels(label).set(sal)
+        log.info(f"  {cfg['name']} NOAA sensors: water_temp={wt}F salinity={sal}ppt")
 
         # Solunar + celestial
         sol = compute_solunar(cfg["lat"], cfg["lon"], cfg["tz"])
