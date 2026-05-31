@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% block title %} — Import Handwritten Logs{% endblock %}
+{% block content %}
+
+<!-- Location tabs -->
+<ul class="nav nav-pills mb-4">
+  {% for key, name in locations.items() %}
+  <li class="nav-item">
+    <a class="nav-link {% if selected == key %}active{% endif %}"
+       href="/import?location={{ key }}">{{ name }}</a>
+  </li>
+  {% endfor %}
+</ul>
+
+{% if not import_enabled %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle"></i>
+  Handwritten-log import is disabled — set <code>ANTHROPIC_API_KEY</code> on the server to enable it.
+</div>
+{% endif %}
+
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-cloud-upload"></i> Upload handwritten log pages — {{ locations[selected] }}</span>
+    <span class="text-muted small"><i class="bi bi-robot"></i> {{ model }}</span>
+  </div>
+  <div class="card-body">
+    <p class="text-muted small mb-3">
+      Snap a photo or scan of each handwritten page (JPEG/PNG/WebP). Claude transcribes
+      every catch, maps it to a known species, and proposes log entries. Nothing is saved
+      until you review and click <strong>Import</strong>. Tide / weather / solunar conditions
+      are backfilled automatically from NOAA for each entry's date.
+    </p>
+
+    <input type="hidden" id="location" value="{{ selected }}">
+
+    <label for="fileInput"
+           id="dropZone"
+           class="d-block text-center p-5 mb-3"
+           style="border:2px dashed #30363d; border-radius:.5rem; cursor:pointer;">
+      <i class="bi bi-images" style="font-size:2.5rem; color:#58a6ff;"></i>
+      <div class="mt-2">Click to choose images, or drag &amp; drop here</div>
+      <div class="text-muted small">Up to many pages at once</div>
+    </label>
+    <input type="file" id="fileInput" accept="image/*" multiple class="d-none" {% if not import_enabled %}disabled{% endif %}>
+
+    <div id="thumbs" class="d-flex flex-wrap gap-2 mb-3"></div>
+
+    <button id="extractBtn" class="btn btn-primary" disabled>
+      <i class="bi bi-magic"></i> Analyze with Claude
+    </button>
+    <span id="extractStatus" class="ms-2 text-muted small"></span>
+  </div>
+</div>
+
+<div id="loadingSpinner" class="text-center py-5 d-none">
+  <div class="spinner-border text-primary" role="status"></div>
+  <p class="mt-3 text-muted">Reading your handwriting with Claude…</p>
+</div>
+
+<!-- Review + edit proposed entries -->
+<div id="reviewCard" class="card mb-4 d-none">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-pencil-square"></i> Review proposed entries</span>
+    <span id="entryCount" class="badge bg-secondary"></span>
+  </div>
+  <div class="card-body">
+    <div id="unreadableNote" class="alert alert-warning d-none small"></div>
+    <p class="text-muted small">
+      Fix anything Claude misread, untick rows you don't want, then import.
+      Low-confidence rows are highlighted.
+    </p>
+    <div class="table-responsive">
+      <table class="table table-sm table-dark align-middle">
+        <thead>
+          <tr>
+            <th style="width:2.5rem"></th>
+            <th>Date</th><th>Time</th><th>Species</th>
+            <th>Caught</th><th>#</th><th>Size&nbsp;in</th><th>Wt&nbsp;lbs</th>
+            <th>Notes / page conditions</th><th>Conf.</th>
+          </tr>
+        </thead>
+        <tbody id="reviewBody"></tbody>
+      </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+      <button id="commitBtn" class="btn btn-success">
+        <i class="bi bi-database-add"></i> Import selected entries
+      </button>
+      <a id="transcriptToggle" class="small text-info" role="button">Show raw transcription</a>
+    </div>
+    <pre id="transcript" class="mt-3 p-3 d-none small"
+         style="background:#0d1117; border:1px solid #30363d; border-radius:.4rem; white-space:pre-wrap; color:#cdd9e5;"></pre>
+  </div>
+</div>
+
+<div id="resultCard" class="card d-none">
+  <div class="card-body" id="resultBody"></div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SPECIES = {{ species[selected] | tojson }};
+let files = [];
+
+const fileInput   = document.getElementById('fileInput');
+const dropZone    = document.getElementById('dropZone');
+const thumbs      = document.getElementById('thumbs');
+const extractBtn  = document.getElementById('extractBtn');
+
+function refreshThumbs() {
+  thumbs.innerHTML = '';
+  files.forEach((f, i) => {
+    const wrap = document.createElement('div');
+    wrap.style.position = 'relative';
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(f);
+    img.style.cssText = 'height:80px;border-radius:.4rem;border:1px solid #30363d;object-fit:cover;';
+    const x = document.createElement('button');
+    x.className = 'btn btn-sm btn-danger py-0 px-1';
+    x.style.cssText = 'position:absolute;top:-6px;right:-6px;line-height:1;';
+    x.innerHTML = '&times;';
+    x.onclick = (e) => { e.preventDefault(); files.splice(i, 1); refreshThumbs(); };
+    wrap.append(img, x);
+    thumbs.appendChild(wrap);
+  });
+  extractBtn.disabled = files.length === 0;
+}
+
+function addFiles(list) {
+  for (const f of list) if (f.type.startsWith('image/')) files.push(f);
+  refreshThumbs();
+}
+
+fileInput.addEventListener('change', e => addFiles(e.target.files));
+['dragenter','dragover'].forEach(ev => dropZone.addEventListener(ev, e => {
+  e.preventDefault(); dropZone.style.borderColor = '#58a6ff';
+}));
+['dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, e => {
+  e.preventDefault(); dropZone.style.borderColor = '#30363d';
+}));
+dropZone.addEventListener('drop', e => addFiles(e.dataTransfer.files));
+
+function speciesOptions(selected) {
+  let html = '';
+  let found = false;
+  for (const s of SPECIES) {
+    const sel = s === selected ? ' selected' : '';
+    if (sel) found = true;
+    html += `<option value="${s}"${sel}>${s}</option>`;
+  }
+  // keep an unknown value from Claude rather than silently dropping it
+  if (selected && !found) html = `<option value="${selected}" selected>${selected}</option>` + html;
+  return html;
+}
+
+function entryRow(e) {
+  const low = (e.confidence ?? 1) < 0.6;
+  const tr = document.createElement('tr');
+  if (low) tr.style.background = '#3a2a12';
+  const notes = [e.notes, e.page_conditions ? 'Page: ' + e.page_conditions : '',
+                 (e.species_raw && e.species_raw !== e.species) ? 'as "' + e.species_raw + '"' : '']
+                 .filter(Boolean).join(' — ');
+  tr.innerHTML = `
+    <td><input type="checkbox" class="form-check-input rowsel" checked></td>
+    <td><input type="date"   class="form-control form-control-sm f-date"  value="${e.catch_date || ''}" style="min-width:9rem"></td>
+    <td><input type="time"   class="form-control form-control-sm f-time"  value="${e.catch_time || ''}" style="min-width:7rem"></td>
+    <td><select class="form-select form-select-sm f-species" style="min-width:12rem">${speciesOptions(e.species)}</select></td>
+    <td><select class="form-select form-select-sm f-caught">
+          <option value="yes"${e.caught ? ' selected' : ''}>Caught</option>
+          <option value="no"${e.caught ? '' : ' selected'}>Skunk</option>
+        </select></td>
+    <td><input type="number" class="form-control form-control-sm f-count" value="${e.fish_count ?? 1}" min="0" style="width:4rem"></td>
+    <td><input type="number" step="0.1" class="form-control form-control-sm f-size"   value="${e.size_in ?? ''}"    style="width:5rem"></td>
+    <td><input type="number" step="0.1" class="form-control form-control-sm f-weight" value="${e.weight_lbs ?? ''}" style="width:5rem"></td>
+    <td><input type="text"   class="form-control form-control-sm f-notes" value="${notes.replace(/"/g, '&quot;')}"></td>
+    <td class="small ${low ? 'text-warning' : 'text-muted'}">${e.confidence != null ? (e.confidence*100).toFixed(0)+'%' : '—'}</td>`;
+  return tr;
+}
+
+extractBtn.addEventListener('click', async () => {
+  if (!files.length) return;
+  const spinner = document.getElementById('loadingSpinner');
+  const status  = document.getElementById('extractStatus');
+  extractBtn.disabled = true;
+  spinner.classList.remove('d-none');
+  status.textContent = '';
+
+  const fd = new FormData();
+  fd.append('location', document.getElementById('location').value);
+  files.forEach(f => fd.append('images', f));
+
+  try {
+    const resp = await fetch('/api/import/extract', { method: 'POST', body: fd });
+    const data = await resp.json();
+    if (data.status !== 'ok') { status.textContent = 'Error: ' + data.message; return; }
+
+    const body = document.getElementById('reviewBody');
+    body.innerHTML = '';
+    (data.entries || []).forEach(e => body.appendChild(entryRow(e)));
+    document.getElementById('entryCount').textContent =
+      (data.entries || []).length + ' entries from ' + data.pages + ' page(s)';
+    document.getElementById('transcript').textContent = data.transcription || '';
+    const un = document.getElementById('unreadableNote');
+    if (data.unreadable) { un.textContent = '⚠ ' + data.unreadable; un.classList.remove('d-none'); }
+    else un.classList.add('d-none');
+    document.getElementById('reviewCard').classList.remove('d-none');
+    document.getElementById('reviewCard').scrollIntoView({ behavior: 'smooth' });
+  } catch (err) {
+    status.textContent = 'Request failed: ' + err;
+  } finally {
+    spinner.classList.add('d-none');
+    extractBtn.disabled = false;
+  }
+});
+
+document.getElementById('transcriptToggle').addEventListener('click', () => {
+  const t = document.getElementById('transcript');
+  const link = document.getElementById('transcriptToggle');
+  t.classList.toggle('d-none');
+  link.textContent = t.classList.contains('d-none') ? 'Show raw transcription' : 'Hide raw transcription';
+});
+
+document.getElementById('commitBtn').addEventListener('click', async () => {
+  const rows = [...document.querySelectorAll('#reviewBody tr')];
+  const entries = rows.filter(r => r.querySelector('.rowsel').checked).map(r => ({
+    catch_date: r.querySelector('.f-date').value,
+    catch_time: r.querySelector('.f-time').value || null,
+    species:    r.querySelector('.f-species').value,
+    caught:     r.querySelector('.f-caught').value === 'yes',
+    fish_count: parseInt(r.querySelector('.f-count').value || '1', 10),
+    size_in:    r.querySelector('.f-size').value   ? parseFloat(r.querySelector('.f-size').value)   : null,
+    weight_lbs: r.querySelector('.f-weight').value ? parseFloat(r.querySelector('.f-weight').value) : null,
+    notes:      r.querySelector('.f-notes').value || null,
+  }));
+  if (!entries.length) { alert('No rows selected.'); return; }
+
+  const btn = document.getElementById('commitBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Importing…';
+  try {
+    const resp = await fetch('/api/import/commit', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ location: document.getElementById('location').value, entries }),
+    });
+    const data = await resp.json();
+    const card = document.getElementById('resultCard');
+    const loc  = document.getElementById('location').value;
+    let html = `<i class="bi bi-check-circle-fill text-success"></i> Imported <strong>${data.inserted}</strong> entries.`;
+    if (data.errors && data.errors.length)
+      html += `<div class="text-warning small mt-2">${data.errors.length} row(s) failed: ` +
+              data.errors.map(e => (e.date || '?') + ' ' + (e.species || '')).join(', ') + '</div>';
+    html += `<div class="mt-3">
+               <a href="/history?location=${loc}" class="btn btn-sm btn-outline-light"><i class="bi bi-clock-history"></i> View history</a>
+               <a href="/analysis?location=${loc}" class="btn btn-sm btn-outline-primary"><i class="bi bi-robot"></i> Run analysis</a>
+             </div>`;
+    document.getElementById('resultBody').innerHTML = html;
+    card.classList.remove('d-none');
+    document.getElementById('reviewCard').classList.add('d-none');
+    card.scrollIntoView({ behavior: 'smooth' });
+  } catch (err) {
+    alert('Import failed: ' + err);
+  } finally {
+    btn.disabled = false; btn.innerHTML = '<i class="bi bi-database-add"></i> Import selected entries';
+  }
+});
+</script>
+{% endblock %}

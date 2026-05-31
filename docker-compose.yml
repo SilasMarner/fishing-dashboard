@@ -28,6 +28,9 @@ services:
       - AI_PROVIDER=${AI_PROVIDER:-groq}
       - GROQ_API_KEY=${GROQ_API_KEY}
       - XAI_API_KEY=${XAI_API_KEY}
+      # Claude vision — handwritten-log import (/import). Independent of AI_PROVIDER.
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - IMPORT_MODEL=${IMPORT_MODEL:-claude-opus-4-8}
       - ANALYSIS_INTERVAL_HOURS=6
       - PORT=9879
     ports:

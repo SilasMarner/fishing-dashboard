@@ -39,6 +39,7 @@
     <div class="d-flex gap-3">
       <a href="/"        class="nav-link text-light {% if request.path == '/' %}fw-bold{% endif %}"><i class="bi bi-plus-circle"></i> Log</a>
       <a href="/history" class="nav-link text-light {% if '/history' in request.path %}fw-bold{% endif %}"><i class="bi bi-clock-history"></i> History</a>
+      <a href="/import"  class="nav-link text-light {% if '/import' in request.path %}fw-bold{% endif %}"><i class="bi bi-cloud-upload"></i> Import</a>
       <a href="/analysis" class="nav-link text-light {% if '/analysis' in request.path %}fw-bold{% endif %}"><i class="bi bi-robot"></i> AI Analysis</a>
       <a href="/tides"   class="nav-link text-light {% if '/tides' in request.path %}fw-bold{% endif %}"><i class="bi bi-water"></i> Tides</a>
     </div>

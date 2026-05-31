@@ -2,6 +2,7 @@
 """
 Fish Logger — catch logging + AI analysis correlated with tide/weather/solunar data.
 """
+import base64
 import json
 import logging
 import os
@@ -32,8 +33,15 @@ AI_PROVIDER          = os.environ.get("AI_PROVIDER", "groq").lower()  # "groq" o
 ANALYSIS_HOURS       = int(os.environ.get("ANALYSIS_INTERVAL_HOURS", "6"))
 PORT                 = int(os.environ.get("PORT", "9879"))
 APP_TZ               = ZoneInfo("America/Chicago")
-# ANTHROPIC_KEY  = os.environ.get("ANTHROPIC_API_KEY", "")   # ── uncomment to use Claude instead
 # GEMINI_KEY     = os.environ.get("GEMINI_API_KEY", "")      # ── uncomment to use Gemini instead
+
+# ── Handwritten-log import (Claude vision) ─────────────────────────────────────
+# Separate from AI_PROVIDER above: image transcription needs a vision model, so the
+# import feature always uses Anthropic Claude regardless of the text-analysis provider.
+ANTHROPIC_KEY        = os.environ.get("ANTHROPIC_API_KEY", "")
+IMPORT_MODEL         = os.environ.get("IMPORT_MODEL", "claude-opus-4-8")
+IMPORT_MAX_IMAGES    = int(os.environ.get("IMPORT_MAX_IMAGES", "20"))
+ALLOWED_IMG_TYPES    = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 
 # ── Species by location ────────────────────────────────────────────────────────
 SPECIES = {
@@ -545,6 +553,175 @@ def save_analysis(location: str, content: str, window: str = "all",
         )
         conn.commit()
 
+# ── Handwritten-log import via Claude vision ───────────────────────────────────
+# Anthropic forces structured output by making the model call this "tool"; we read
+# the validated JSON straight out of its input. One entry == one fish_log row.
+IMPORT_TOOL = {
+    "name": "record_log_entries",
+    "description": "Record every fishing log entry transcribed from the handwritten page(s).",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "entries": {
+                "type": "array",
+                "description": "One object per individual catch/trip line on the page.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "catch_date":  {"type": "string",
+                                        "description": "Date of the catch in YYYY-MM-DD. Infer the year from page context if abbreviated."},
+                        "catch_time":  {"type": ["string", "null"],
+                                        "description": "Local time as HH:MM (24-hour), or null if not written."},
+                        "species":     {"type": "string",
+                                        "description": "Best match from the provided canonical species list. Use 'Other' if no reasonable match."},
+                        "species_raw": {"type": ["string", "null"],
+                                        "description": "Exactly what was written if it differs from the canonical name (abbreviations, slang)."},
+                        "caught":      {"type": "boolean",
+                                        "description": "true if a fish was landed; false for an explicit skunk / no-catch line."},
+                        "fish_count":  {"type": "integer", "description": "Number of this species caught on this line (default 1)."},
+                        "size_in":     {"type": ["number", "null"], "description": "Length in inches if recorded."},
+                        "weight_lbs":  {"type": ["number", "null"], "description": "Weight in pounds if recorded."},
+                        "page_conditions": {"type": ["string", "null"],
+                                            "description": "Any tide / weather / bait / water conditions written on the page for this entry, verbatim."},
+                        "notes":       {"type": ["string", "null"], "description": "Any other remarks written for this entry."},
+                        "confidence":  {"type": "number",
+                                        "description": "Your transcription confidence for this line, 0.0–1.0."}
+                    },
+                    "required": ["catch_date", "species", "caught", "fish_count", "confidence"]
+                }
+            },
+            "transcription": {"type": "string",
+                              "description": "A faithful, literal transcription of all text on the page(s)."},
+            "unreadable": {"type": ["string", "null"],
+                           "description": "Note anything that was illegible or ambiguous so a human can review it."}
+        },
+        "required": ["entries", "transcription"]
+    }
+}
+
+def extract_entries_from_images(images: list[tuple[str, bytes]], location: str) -> dict:
+    """Send page image(s) to Claude and get back structured fish_log entries.
+
+    images: list of (media_type, raw_bytes). Returns the tool input dict
+    ({"entries":[...], "transcription":..., "unreadable":...}).
+    """
+    if not ANTHROPIC_KEY:
+        raise RuntimeError("ANTHROPIC_API_KEY not set — handwritten-log import is disabled.")
+
+    from anthropic import Anthropic  # lazy import: app boots fine without the package
+
+    location_name = LOCATION_NAMES.get(location, location)
+    species_list  = SPECIES.get(location, [])
+
+    system = (
+        "You are a meticulous data-entry assistant digitizing decades of handwritten "
+        f"fishing logs for {location_name} on the US Gulf Coast.\n\n"
+        "Transcribe EVERY catch line on the page into a structured entry. Rules:\n"
+        "- Each fish (or each distinct line) becomes one entry. If a line records several "
+        "of one species, set fish_count accordingly.\n"
+        "- Map each species to the closest name in this canonical list; if nothing fits, "
+        "use 'Other' and keep the original wording in species_raw:\n"
+        f"{json.dumps(species_list)}\n"
+        "- Anglers abbreviate (e.g. 'trout' = Spotted Seatrout, 'red'/'rat red' = Red Drum "
+        "(Redfish), 'flounder' = Southern Flounder, 'sheepy' = Sheepshead). Use judgment.\n"
+        "- A line noting a blank/skunk trip with no fish is a valid entry with caught=false.\n"
+        "- Preserve tide, weather, bait, and water notes verbatim in page_conditions — do NOT "
+        "invent values you cannot read.\n"
+        "- Dates may be abbreviated; infer the full YYYY-MM-DD from context (column headers, "
+        "running dates). If a year is genuinely unknowable, use your best estimate and flag it "
+        "in 'unreadable'.\n"
+        "- Lower your confidence for any line you are unsure about; never fabricate fish.\n"
+        "Return results only by calling the record_log_entries tool."
+    )
+
+    content = []
+    for media_type, raw in images:
+        content.append({
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": media_type,
+                "data": base64.standard_b64encode(raw).decode("ascii"),
+            },
+        })
+    content.append({
+        "type": "text",
+        "text": (f"These are handwritten fishing log page(s) for {location_name}. "
+                 "Transcribe and structure every entry."),
+    })
+
+    client = Anthropic(api_key=ANTHROPIC_KEY)
+    msg = client.messages.create(
+        model=IMPORT_MODEL,
+        max_tokens=8000,
+        # cache the static system prompt (instructions + species list) across pages
+        system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+        tools=[IMPORT_TOOL],
+        tool_choice={"type": "tool", "name": "record_log_entries"},
+        messages=[{"role": "user", "content": content}],
+    )
+
+    for block in msg.content:
+        if block.type == "tool_use" and block.name == "record_log_entries":
+            return block.input
+    raise RuntimeError("Claude returned no structured entries.")
+
+def _entry_dt(entry: dict) -> datetime:
+    """Combine an extracted entry's date + time into a tz-aware datetime."""
+    raw = (entry.get("catch_date") or "").strip()
+    tm  = (entry.get("catch_time") or "12:00").strip()
+    for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(f"{raw} {tm}", fmt).replace(tzinfo=APP_TZ)
+        except ValueError:
+            continue
+    # fall back to date-only at noon
+    return datetime.strptime(raw, "%Y-%m-%d").replace(hour=12, tzinfo=APP_TZ)
+
+def insert_imported_entry(conn, location: str, entry: dict) -> None:
+    """Insert one reviewed import entry, backfilling NOAA/solunar conditions for its date.
+
+    Conditions the angler wrote on the page are preserved in `notes`; the numeric
+    condition columns are backfilled from the historical exporter so imported rows
+    analyze consistently alongside live-logged catches.
+    """
+    catch_dt = _entry_dt(entry)
+    try:
+        cond = get_conditions_for_date(location, catch_dt)
+    except Exception as e:                       # historical backfill is best-effort
+        log.warning("Condition backfill failed for %s: %s", catch_dt.date(), e)
+        cond = {}
+
+    note_parts = []
+    if entry.get("notes"):           note_parts.append(str(entry["notes"]).strip())
+    if entry.get("page_conditions"): note_parts.append(f"Page conditions: {entry['page_conditions']}")
+    if entry.get("species_raw") and entry["species_raw"] != entry.get("species"):
+        note_parts.append(f"Logged as: {entry['species_raw']}")
+    note_parts.append("[imported from handwritten log]")
+    notes = " — ".join(p for p in note_parts if p) or None
+
+    conn.execute("""
+        INSERT INTO fish_log (
+            logged_at,
+            location, species, caught, fish_count, size_in, weight_lbs, notes,
+            tide_height_ft, tide_stage, water_level_ft,
+            pressure_mb, pressure_trend, temp_f, wind_speed_mph, wind_deg,
+            precip_chance, humidity, cloud_cover,
+            solunar_period, moon_phase_pct, fishing_score
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    """, (
+        int(catch_dt.timestamp()),
+        location, entry.get("species") or "Other",
+        1 if entry.get("caught") else 0,
+        int(entry.get("fish_count") or 1),
+        entry.get("size_in"), entry.get("weight_lbs"), notes,
+        cond.get("tide_height_ft"), cond.get("tide_stage"), cond.get("water_level_ft"),
+        cond.get("pressure_mb"), cond.get("pressure_trend"),
+        cond.get("temp_f"), cond.get("wind_speed_mph"), cond.get("wind_deg"),
+        cond.get("precip_chance"), cond.get("humidity"), cond.get("cloud_cover"),
+        cond.get("solunar_period"), cond.get("moon_phase_pct"), cond.get("fishing_score"),
+    ))
+
 def analysis_scheduler():
     time.sleep(90)  # let stack stabilize before first run
     while True:
@@ -772,6 +949,87 @@ def api_log():
         ))
         conn.commit()
     return jsonify({"status": "ok"})
+
+# ── Handwritten-log import routes ──────────────────────────────────────────────
+@app.route("/import")
+def import_page():
+    location = request.args.get("location", "freeport_tx")
+    return render_template("import.html",
+                           locations=LOCATION_NAMES,
+                           species=SPECIES,
+                           selected=location,
+                           import_enabled=bool(ANTHROPIC_KEY),
+                           model=IMPORT_MODEL)
+
+@app.route("/api/import/extract", methods=["POST", "OPTIONS"])
+def api_import_extract():
+    """Accept uploaded page image(s), return Claude-extracted entries for review.
+
+    Nothing is written to the database here — the user reviews/edits the proposed
+    entries client-side, then POSTs them to /api/import/commit.
+    """
+    if request.method == "OPTIONS":
+        return "", 204
+    if not ANTHROPIC_KEY:
+        return jsonify({"status": "error",
+                        "message": "ANTHROPIC_API_KEY not set on the server."}), 503
+
+    location = request.form.get("location", "freeport_tx")
+    files = request.files.getlist("images")
+    if not files:
+        return jsonify({"status": "error", "message": "No images uploaded."}), 400
+    if len(files) > IMPORT_MAX_IMAGES:
+        return jsonify({"status": "error",
+                        "message": f"Too many images (max {IMPORT_MAX_IMAGES})."}), 400
+
+    images = []
+    for fs in files:
+        mt = (fs.mimetype or "").lower()
+        if mt not in ALLOWED_IMG_TYPES:
+            return jsonify({"status": "error",
+                            "message": f"Unsupported file type: {fs.filename} ({mt or 'unknown'})."}), 400
+        images.append((mt, fs.read()))
+
+    try:
+        result = extract_entries_from_images(images, location)
+    except Exception as e:
+        log.exception("Import extraction failed")
+        return jsonify({"status": "error", "message": str(e)}), 502
+
+    entries = result.get("entries", []) if isinstance(result, dict) else []
+    return jsonify({
+        "status": "ok",
+        "location": location,
+        "model": IMPORT_MODEL,
+        "pages": len(images),
+        "entries": entries,
+        "transcription": result.get("transcription", "") if isinstance(result, dict) else "",
+        "unreadable": result.get("unreadable") if isinstance(result, dict) else None,
+    })
+
+@app.route("/api/import/commit", methods=["POST", "OPTIONS"])
+def api_import_commit():
+    """Persist the reviewed entries. Body: {location, entries:[...]}."""
+    if request.method == "OPTIONS":
+        return "", 204
+    data = request.get_json(silent=True) or {}
+    location = data.get("location", "freeport_tx")
+    entries  = data.get("entries", [])
+    if not isinstance(entries, list) or not entries:
+        return jsonify({"status": "error", "message": "No entries to import."}), 400
+
+    inserted, errors = 0, []
+    with sqlite3.connect(DB_PATH) as conn:
+        for i, entry in enumerate(entries):
+            try:
+                insert_imported_entry(conn, location, entry)
+                inserted += 1
+            except Exception as e:
+                errors.append({"index": i, "message": str(e),
+                               "species": entry.get("species"), "date": entry.get("catch_date")})
+        conn.commit()
+
+    return jsonify({"status": "ok", "inserted": inserted, "errors": errors})
 
 @app.route("/tides")
 def tides():

@@ -237,6 +237,7 @@ The `fish-logger` app runs on port **9879** and has two interfaces:
 | `http://<host>:9879/` | Full web UI — log catches, view history, AI analysis |
 | `http://<host>:9879/embed` | Stripped-down iframe version embedded in Grafana |
 | `http://<host>:9879/analysis?location=freeport_tx` | AI analysis page |
+| `http://<host>:9879/import` | Import handwritten logs — Claude vision → reviewable log entries |
 | `http://<host>:9879/tides` | Station tide lookup — search any of 3,450 NOAA stations |
 
 ### Logging a catch
@@ -274,6 +275,20 @@ curl -X POST http://localhost:9879/api/analyze/freeport_tx
 
 Or click **Run Now** in the Analysis tab of the web UI.
 
+### Importing handwritten logs (`/import`)
+
+Decades of paper logs can be digitized without re-typing every line. On the **Import** page:
+
+1. Select the location tab.
+2. Upload one or more photos/scans of handwritten log pages (JPEG/PNG/WebP, drag-and-drop or file picker — multiple pages at once).
+3. Click **Analyze with Claude**. Claude reads the handwriting, transcribes every catch line, maps each fish to the location's canonical species list (handling abbreviations like *trout → Spotted Seatrout*, *rat red → Red Drum*, *sheepy → Sheepshead*), and infers dates.
+4. **Review and edit** the proposed entries in an editable table. Low-confidence rows are highlighted; untick any you don't want. A raw transcription is available for cross-checking.
+5. Click **Import selected entries**. Each row is written to `fish_log` with its tide/weather/solunar conditions **backfilled from NOAA for that historical date** (same condition sourcing as a manually logged catch). Conditions written on the page itself are preserved verbatim in the notes, and every imported row is tagged `[imported from handwritten log]`.
+
+Then run the **AI Analysis** over the imported history to surface the patterns in your friend's years of records.
+
+**Requirements:** set `ANTHROPIC_API_KEY` (and optionally `IMPORT_MODEL`, default `claude-opus-4-8`) in `.env`. This is independent of `AI_PROVIDER` — the text-analysis report can stay on Groq/xAI while import uses Claude vision. If no key is set, the Import page shows a disabled notice.
+
 ---
 
 ## API Reference
@@ -286,6 +301,8 @@ Or click **Run Now** in the Analysis tab of the web UI.
 | `POST` | `/api/log/bulk-delete` | Delete multiple entries: `{"ids": [1, 2, 3]}` |
 | `GET` | `/api/analysis/<location>` | Latest AI analysis for a location |
 | `POST` | `/api/analyze/<location>` | Trigger immediate AI analysis |
+| `POST` | `/api/import/extract` | Multipart `location` + `images` → Claude-extracted entries (review only, not saved) |
+| `POST` | `/api/import/commit` | `{location, entries:[...]}` → writes reviewed entries to `fish_log` with NOAA backfill |
 | `GET` | `/api/conditions/<location>` | Current Prometheus conditions snapshot |
 | `GET` | `/api/stations/search?q=<text>` | Fuzzy-search NOAA tide stations (cached 24 h) |
 | `GET` | `/api/tides/station?id=<noaa_id>&date=YYYY-MM-DD` | NOAA tide predictions proxy for any station |
