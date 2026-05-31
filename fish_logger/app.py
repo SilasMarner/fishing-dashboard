@@ -699,15 +699,36 @@ def _ocr_tesseract(images: list[tuple[str, bytes]]) -> str:
         pages.append(f"--- page {i} ---\n" + pytesseract.image_to_string(img))
     return "\n\n".join(pages).strip()
 
+def _prep_for_ocr_space(raw: bytes, max_px: int = 2200, target_bytes: int = 950_000) -> bytes:
+    """Downscale/re-encode an image to fit OCR.space's 1 MB free-tier upload limit.
+
+    Phone photos of a log page are routinely 5-7 MB and get rejected with HTTP 413,
+    so shrink the longest edge and step JPEG quality down until it fits.
+    """
+    import io
+    from PIL import Image
+    img = Image.open(io.BytesIO(raw)).convert("RGB")
+    if max(img.size) > max_px:
+        scale = max_px / max(img.size)
+        img = img.resize((int(img.width * scale), int(img.height * scale)))
+    buf = io.BytesIO()
+    for quality in (85, 75, 65, 55, 45):
+        buf.seek(0); buf.truncate()
+        img.save(buf, "JPEG", quality=quality)
+        if buf.tell() <= target_bytes:
+            break
+    return buf.getvalue()
+
 def _ocr_space(images: list[tuple[str, bytes]]) -> str:
     """Free online OCR via api.ocr.space (handwriting engine 2)."""
     pages = []
-    for i, (media_type, raw) in enumerate(images, 1):
+    for i, (_media_type, raw) in enumerate(images, 1):
+        payload = _prep_for_ocr_space(raw)
         resp = requests.post(
             OCR_SPACE_URL,
             data={"apikey": OCR_SPACE_API_KEY, "OCREngine": "2", "scale": "true",
                   "isOverlayRequired": "false"},
-            files={"file": (f"page{i}", raw, media_type)},
+            files={"file": (f"page{i}.jpg", payload, "image/jpeg")},
             timeout=60,
         )
         resp.raise_for_status()
@@ -742,9 +763,17 @@ def structure_text_to_entries(text: str, location: str, model: str | None = None
     location_name = LOCATION_NAMES.get(location, location)
     species_list  = SPECIES.get(location, [])
     prompt = (
-        f"You are digitizing a handwritten Gulf Coast fishing log for {location_name}. "
-        "Below is noisy OCR text from the scanned page(s). Reconstruct the fishing entries "
-        "as structured data, correcting obvious OCR errors using fishing context.\n\n"
+        f"You are digitizing scanned fishing records for {location_name} on the US Gulf Coast. "
+        "Below is noisy OCR text from the scanned page(s), each delimited by \"--- page N ---\". "
+        "Reconstruct the fishing entries as structured data, correcting obvious OCR errors using "
+        "fishing context.\n\n"
+        "A page may be EITHER a free-form handwritten log (many catch lines) OR a pre-printed "
+        "CATCH / TAG FORM (e.g. a tournament or shark-tag card) where ONE form = ONE fish and the "
+        "data sits in labeled fields such as Species, Total Length, Fork Length, Girth, Sex, Date, "
+        "Angler Name, Tag #, Fish Condition, Tackle, Time, GPS. The printed field labels and "
+        "instructions are NOT entries and are NOT a reason to skip a page — read the HANDWRITTEN "
+        "values filled into the fields. EACH filled-in tag-form page is exactly one entry: never "
+        "merge two pages into one, and never dismiss a filled-in form as a blank template.\n\n"
         "Return ONLY a JSON object of this exact shape:\n"
         '{"entries":[{"catch_date":"YYYY-MM-DD","catch_time":"HH:MM or null",'
         '"species":"canonical name","species_raw":"as written or null","caught":true,'
@@ -752,16 +781,22 @@ def structure_text_to_entries(text: str, location: str, model: str | None = None
         '"notes":"other remarks or null","confidence":0.0}],'
         '"unreadable":"note anything illegible, or null"}\n\n'
         "Rules:\n"
-        "- One entry per catch line. A blank/skunk trip with no fish is a valid entry with caught=false.\n"
+        "- One entry per catch line, or one entry per filled-in tag form. A blank/skunk trip with no "
+        "fish is a valid entry with caught=false.\n"
+        "- On a tag form, map Total Length to size_in (inches). Keep the other tag-form fields "
+        "(Tag #, Fork Length, Girth, Sex, Angler Name, Fish Condition, Tackle, GPS/location, Trip) "
+        "in notes so nothing is lost.\n"
         f"- Map each species to the closest name in this list (use 'Other' if none fit):\n{json.dumps(species_list)}\n"
         "- Anglers abbreviate: 'trout'=Spotted Seatrout, 'red'/'rat red'=Red Drum (Redfish), "
         "'flounder'=Southern Flounder, 'sheepy'=Sheepshead.\n"
-        "- Infer full YYYY-MM-DD dates from context; lower confidence when unsure. Never invent fish.\n\n"
+        "- Infer full YYYY-MM-DD dates from context (a 2-digit year like 22 -> 2022); convert am/pm "
+        "times to 24-hour HH:MM. Lower confidence when unsure. Never invent fish.\n\n"
         f"OCR TEXT:\n{text}"
     )
     completion = client.chat.completions.create(
         model=model,
         max_tokens=4000,
+        temperature=0,                       # deterministic structuring of noisy OCR
         response_format={"type": "json_object"},
         messages=[{"role": "user", "content": prompt}],
     )
