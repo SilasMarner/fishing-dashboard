@@ -43,6 +43,23 @@
       <div class="text-muted small">Up to many pages at once</div>
     </label>
     <input type="file" id="fileInput" accept="image/*" multiple class="d-none" {% if not import_enabled %}disabled{% endif %}>
+    <input type="file" id="dirInput"  accept="image/*" multiple webkitdirectory class="d-none" {% if not import_enabled %}disabled{% endif %}>
+
+    <div class="d-flex gap-2 mb-3">
+      <button type="button" id="pickFilesBtn" class="btn btn-sm btn-outline-secondary" {% if not import_enabled %}disabled{% endif %}>
+        <i class="bi bi-images"></i> Choose files
+      </button>
+      <button type="button" id="pickDirBtn" class="btn btn-sm btn-outline-secondary" {% if not import_enabled %}disabled{% endif %}>
+        <i class="bi bi-folder2-open"></i> Choose a folder
+      </button>
+      <button type="button" id="clearBtn" class="btn btn-sm btn-outline-secondary d-none">
+        <i class="bi bi-x-circle"></i> Clear
+      </button>
+    </div>
+    <p class="text-muted small">
+      For very large archives, use the command-line bulk importer instead —
+      see <code>scripts/import_logs.py --help</code>.
+    </p>
 
     <div id="thumbs" class="d-flex flex-wrap gap-2 mb-3"></div>
 
@@ -107,13 +124,23 @@ const SPECIES = {{ species[selected] | tojson }};
 let files = [];
 
 const fileInput   = document.getElementById('fileInput');
+const dirInput    = document.getElementById('dirInput');
 const dropZone    = document.getElementById('dropZone');
 const thumbs      = document.getElementById('thumbs');
 const extractBtn  = document.getElementById('extractBtn');
+const clearBtn    = document.getElementById('clearBtn');
+const MAX_THUMBS  = 60;
 
 function refreshThumbs() {
   thumbs.innerHTML = '';
-  files.forEach((f, i) => {
+  clearBtn.classList.toggle('d-none', files.length === 0);
+  if (files.length > MAX_THUMBS) {
+    const note = document.createElement('div');
+    note.className = 'text-muted small w-100';
+    note.textContent = `${files.length} images selected (showing first ${MAX_THUMBS}).`;
+    thumbs.appendChild(note);
+  }
+  files.slice(0, MAX_THUMBS).forEach((f, i) => {
     const wrap = document.createElement('div');
     wrap.style.position = 'relative';
     const img = document.createElement('img');
@@ -136,6 +163,10 @@ function addFiles(list) {
 }
 
 fileInput.addEventListener('change', e => addFiles(e.target.files));
+dirInput.addEventListener('change', e => addFiles(e.target.files));
+document.getElementById('pickFilesBtn').addEventListener('click', () => fileInput.click());
+document.getElementById('pickDirBtn').addEventListener('click', () => dirInput.click());
+clearBtn.addEventListener('click', () => { files = []; refreshThumbs(); });
 ['dragenter','dragover'].forEach(ev => dropZone.addEventListener(ev, e => {
   e.preventDefault(); dropZone.style.borderColor = '#58a6ff';
 }));

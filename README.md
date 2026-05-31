@@ -285,9 +285,30 @@ Decades of paper logs can be digitized without re-typing every line. On the **Im
 4. **Review and edit** the proposed entries in an editable table. Low-confidence rows are highlighted; untick any you don't want. A raw transcription is available for cross-checking.
 5. Click **Import selected entries**. Each row is written to `fish_log` with its tide/weather/solunar conditions **backfilled from NOAA for that historical date** (same condition sourcing as a manually logged catch). Conditions written on the page itself are preserved verbatim in the notes, and every imported row is tagged `[imported from handwritten log]`.
 
+You can upload individual files, drag-and-drop, or click **Choose a folder** to select a whole directory of scans at once.
+
 Then run the **AI Analysis** over the imported history to surface the patterns in your friend's years of records.
 
 **Requirements:** set `ANTHROPIC_API_KEY` (and optionally `IMPORT_MODEL`, default `claude-opus-4-8`) in `.env`. This is independent of `AI_PROVIDER` — the text-analysis report can stay on Groq/xAI while import uses Claude vision. If no key is set, the Import page shows a disabled notice.
+
+#### Bulk import from the command line — `scripts/import_logs.py`
+
+For large archives (hundreds of scanned pages), the CLI points at a directory and batch-processes through the same API. It talks to the running fish-logger over HTTP, so it reuses the identical extraction, species-mapping, and condition-backfill logic.
+
+```bash
+# Recommended: extract everything to a JSON file for review, commit nothing yet
+python3 scripts/import_logs.py -d ~/scans/freeport -l freeport_tx --dry-run --out proposed.json
+
+# ...open proposed.json, fix any misreads, delete junk rows...
+
+# Commit the reviewed file
+python3 scripts/import_logs.py --commit-file proposed.json -l freeport_tx
+
+# Or one-shot extract + commit, no prompt:
+python3 scripts/import_logs.py -d ~/scans/freeport -l freeport_tx -y
+```
+
+Useful flags (`--help` for all): `-r/--recursive`, `-b/--batch N` (group N scans that are pages of one multi-page log), `--model` (override `IMPORT_MODEL` per run), `--min-confidence 0.6` (drop low-confidence rows), `--host` (target a remote fish-logger), `--limit N` (test on the first N files), `--sleep`/`--retries` (rate-limit handling). A bad key / no credits / no model access is reported as fatal and aborts the run immediately rather than retrying every page.
 
 ---
 

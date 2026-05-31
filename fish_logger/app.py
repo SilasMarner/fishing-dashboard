@@ -599,7 +599,8 @@ IMPORT_TOOL = {
     }
 }
 
-def extract_entries_from_images(images: list[tuple[str, bytes]], location: str) -> dict:
+def extract_entries_from_images(images: list[tuple[str, bytes]], location: str,
+                                model: str | None = None) -> dict:
     """Send page image(s) to Claude and get back structured fish_log entries.
 
     images: list of (media_type, raw_bytes). Returns the tool input dict
@@ -608,6 +609,7 @@ def extract_entries_from_images(images: list[tuple[str, bytes]], location: str) 
     if not ANTHROPIC_KEY:
         raise RuntimeError("ANTHROPIC_API_KEY not set — handwritten-log import is disabled.")
 
+    model = model or IMPORT_MODEL
     from anthropic import Anthropic  # lazy import: app boots fine without the package
 
     location_name = LOCATION_NAMES.get(location, location)
@@ -652,7 +654,7 @@ def extract_entries_from_images(images: list[tuple[str, bytes]], location: str) 
 
     client = Anthropic(api_key=ANTHROPIC_KEY)
     msg = client.messages.create(
-        model=IMPORT_MODEL,
+        model=model,
         max_tokens=8000,
         # cache the static system prompt (instructions + species list) across pages
         system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
@@ -975,6 +977,7 @@ def api_import_extract():
                         "message": "ANTHROPIC_API_KEY not set on the server."}), 503
 
     location = request.form.get("location", "freeport_tx")
+    model    = request.form.get("model") or IMPORT_MODEL
     files = request.files.getlist("images")
     if not files:
         return jsonify({"status": "error", "message": "No images uploaded."}), 400
@@ -991,16 +994,23 @@ def api_import_extract():
         images.append((mt, fs.read()))
 
     try:
-        result = extract_entries_from_images(images, location)
+        result = extract_entries_from_images(images, location, model=model)
     except Exception as e:
         log.exception("Import extraction failed")
-        return jsonify({"status": "error", "message": str(e)}), 502
+        msg = str(e)
+        # Permanent problems (bad/no key, no credits, no model access) won't fix
+        # themselves — flag them 402 so the bulk CLI aborts instead of retrying
+        # the same error on every page. Everything else is treated as transient.
+        fatal = any(k in msg.lower() for k in
+                    ("credit balance", "billing", "authentication", "x-api-key",
+                     "permission", "not_found_error", "invalid api key"))
+        return jsonify({"status": "error", "message": msg, "fatal": fatal}), (402 if fatal else 502)
 
     entries = result.get("entries", []) if isinstance(result, dict) else []
     return jsonify({
         "status": "ok",
         "location": location,
-        "model": IMPORT_MODEL,
+        "model": model,
         "pages": len(images),
         "entries": entries,
         "transcription": result.get("transcription", "") if isinstance(result, dict) else "",
