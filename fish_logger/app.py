@@ -5,6 +5,7 @@ Fish Logger — catch logging + AI analysis correlated with tide/weather/solunar
 import json
 import logging
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -830,6 +831,89 @@ def api_tides_station():
     except Exception as exc:
         log.warning("NOAA tide fetch failed for station %s: %s", station_id, exc)
         return jsonify({"error": str(exc)}), 502
+
+# ── Maps: wind (Windy) + salinity (NOAA NGOFS2 OFS) ──────────────────────────
+# Surface-salinity forecast plots from NOAA's Northern Gulf OFS, looped like the
+# Tides mobile app. Region is auto-picked nearest the station; NGOFS2 only
+# models the northern Gulf, so non-Gulf stations get a coverage notice instead.
+_NGOFS2_REGIONS = [
+    ("gb",  "Galveston Bay",            29.4, -94.9),
+    ("ma",  "Matagorda Bay",            28.5, -96.2),
+    ("cc",  "Corpus Christi",           27.8, -97.1),
+    ("sn",  "Sabine–Neches",            29.7, -93.9),
+    ("lc",  "Calcasieu / Lake Charles", 29.9, -93.3),
+    ("lp",  "Lake Pontchartrain",       30.1, -90.1),
+    ("gf",  "Gulfport",                 30.3, -89.1),
+    ("pg",  "Pascagoula",               30.3, -88.5),
+    ("mb",  "Mobile Bay",               30.4, -88.0),
+    ("gom", "Gulf of America (overview)", 27.5, -90.5),
+]
+_OFS_CDN = "https://cdn.tidesandcurrents.noaa.gov/ofs/ngofs2/wwwgraphics"
+_BROWSER_UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+               "(KHTML, like Gecko) Chrome/120 Safari/537.36")
+_sal_cache: dict = {}        # region_code -> (ts, frames)
+_sal_lock = threading.Lock()
+
+def _station_coords(station_id: str):
+    for s in _get_noaa_stations():
+        if s["id"] == station_id:
+            try:
+                return float(s["lat"]), float(s["lng"])
+            except (TypeError, ValueError):
+                break
+    return None, None
+
+def _nearest_ngofs2_region(lat: float, lon: float):
+    best, best_d = None, 1e9
+    for code, label, rlat, rlon in _NGOFS2_REGIONS:
+        if code == "gom":
+            continue  # overview center is offshore — never the auto-pick
+        d = (rlat - lat) ** 2 + (rlon - lon) ** 2
+        if d < best_d:
+            best, best_d = (code, label), d
+    return best[0], best[1], best_d ** 0.5
+
+def _fmt_ofs_label(raw: str) -> str:
+    # "1000 (CDT) 05/30/26" -> "10:00 CDT · 05/30"
+    m = re.match(r"^(\d{2})(\d{2})\s*\(([^)]+)\)\s*(\d{2})/(\d{2})", raw)
+    return f"{m.group(1)}:{m.group(2)} {m.group(3)} · {m.group(4)}/{m.group(5)}" if m else raw
+
+def _salinity_frames(region_code: str) -> list:
+    now = time.time()
+    cached = _sal_cache.get(region_code)
+    if cached and now - cached[0] < 1800:
+        return cached[1]
+    with _sal_lock:
+        cached = _sal_cache.get(region_code)
+        if cached and now - cached[0] < 1800:
+            return cached[1]
+        # Fetch the option file server-side (the CDN blocks browser fetch via
+        # CORS, and rejects requests without a browser UA).
+        r = requests.get(f"{_OFS_CDN}/NGOFS2_{region_code}_all_sa_fore_option",
+                         headers={"User-Agent": _BROWSER_UA}, timeout=15)
+        r.raise_for_status()
+        frames = []
+        for m in re.finditer(r'value="(?:model_graphics/)?([^"]+\.png)"[^>]*>([^<\r\n]+)', r.text):
+            fname = m.group(1).split("/")[-1]
+            frames.append({"url": f"{_OFS_CDN}/{fname}", "label": _fmt_ofs_label(m.group(2).strip())})
+        _sal_cache[region_code] = (now, frames)
+        return frames
+
+@app.route("/api/maps/<station_id>")
+def api_maps(station_id):
+    """Coords + salinity-loop frames for a station's Wind/Salinity map buttons."""
+    lat, lon = _station_coords(station_id.strip())
+    if lat is None:
+        return jsonify({"error": "station coordinates not found"}), 404
+    code, label, dist = _nearest_ngofs2_region(lat, lon)
+    sal = {"in_coverage": dist <= 4.0, "region_code": code, "region_label": label}
+    if sal["in_coverage"]:
+        try:
+            sal["frames"] = _salinity_frames(code)
+        except Exception as exc:
+            log.warning("salinity frames fetch failed (%s): %s", code, exc)
+            sal["frames"], sal["error"] = [], "Could not load salinity forecast"
+    return jsonify({"lat": lat, "lon": lon, "salinity": sal})
 
 @app.route("/api/weather")
 def api_weather():

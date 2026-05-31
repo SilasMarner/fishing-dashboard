@@ -50,7 +50,13 @@
     <div class="card" style="min-height:340px">
       <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span><i class="bi bi-arrow-down-up"></i> Tide Predictions — <span id="stationLabel">select a station</span></span>
-        <span class="badge bg-secondary d-none" id="stationIdBadge"></span>
+        <div class="d-flex align-items-center gap-2">
+          <button id="windBtn" class="btn btn-sm btn-outline-info" disabled
+                  title="Live wind map"><i class="bi bi-wind"></i> Wind</button>
+          <button id="salBtn" class="btn btn-sm btn-outline-info" disabled
+                  title="Salinity forecast loop (Gulf)"><i class="bi bi-droplet-half"></i> Salinity</button>
+          <span class="badge bg-secondary d-none" id="stationIdBadge"></span>
+        </div>
       </div>
       <div class="card-body" id="tideBody">
         <div class="text-muted text-center py-5">
@@ -61,6 +67,35 @@
     </div>
   </div>
 
+</div>
+
+<!-- Wind map modal (Windy embed) -->
+<div class="modal fade" id="windModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content" style="background:#161b22;border:1px solid #30363d;">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-wind me-2"></i>Wind Map — <span id="windModalLabel"></span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <iframe id="windFrame" title="Windy wind map"
+                style="width:100%;height:72vh;border:0;display:block;" allowfullscreen></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Salinity map modal (NOAA NGOFS2 loop) -->
+<div class="modal fade" id="salModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content" style="background:#161b22;border:1px solid #30363d;">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-droplet-half me-2"></i>Salinity Forecast <span id="salRegionLabel" class="text-info ms-1"></span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center" id="salBody" style="min-height:300px;"></div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -165,6 +200,7 @@ function selectStation(id, name) {
   // update URL so it's bookmarkable without reloading
   history.replaceState(null, '', `/tides?id=${id}&name=${encodeURIComponent(name)}`);
   fetchTides(id, name);
+  loadMaps(id);
 }
 
 async function fetchTides(stationId, stationName) {
@@ -256,6 +292,95 @@ function renderTides(predictions, date) {
       <i class="bi bi-info-circle me-1"></i>NOAA Tides &amp; Currents · Local station time · Datum: MLLW
     </div>`;
 }
+
+// ── Wind + Salinity map buttons (open in modals — no page real estate) ────────
+let activeLat = null, activeLon = null, salData = null;
+let salFrames = [], salIdx = 0, salTimer = null, salPlaying = true;
+const windModal = new bootstrap.Modal(document.getElementById('windModal'));
+const salModal  = new bootstrap.Modal(document.getElementById('salModal'));
+const windBtn   = document.getElementById('windBtn');
+const salBtn    = document.getElementById('salBtn');
+
+async function loadMaps(id) {
+  activeLat = activeLon = salData = null;
+  windBtn.disabled = true; salBtn.disabled = true;
+  try {
+    const d = await (await fetch(`/api/maps/${id}`)).json();
+    if (d.error) return;
+    activeLat = d.lat; activeLon = d.lon; salData = d.salinity;
+    windBtn.disabled = false; salBtn.disabled = false;
+  } catch (e) { /* leave buttons disabled */ }
+}
+
+windBtn.addEventListener('click', () => {
+  if (activeLat == null) return;
+  document.getElementById('windFrame').src =
+    `https://embed.windy.com/embed2.html?lat=${activeLat}&lon=${activeLon}`
+    + `&detailLat=${activeLat}&detailLon=${activeLon}&zoom=8&level=surface&overlay=wind`
+    + `&product=ecmwf&menu=&message=&marker=true&calendar=now&pressure=&type=map`
+    + `&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1`;
+  document.getElementById('windModalLabel').textContent = activeStationName || '';
+  windModal.show();
+});
+document.getElementById('windModal').addEventListener('hidden.bs.modal', () => {
+  document.getElementById('windFrame').src = 'about:blank';   // stop streaming
+});
+
+salBtn.addEventListener('click', () => {
+  if (!salData) return;
+  const body = document.getElementById('salBody');
+  document.getElementById('salRegionLabel').textContent =
+    salData.in_coverage ? '· NGOFS2 · ' + (salData.region_label || '') : '';
+  if (!salData.in_coverage) {
+    body.innerHTML = `<div class="py-5 text-muted">
+      <i class="bi bi-droplet" style="font-size:2.5rem;opacity:.4"></i>
+      <p class="mt-3 mb-1 text-light">Salinity forecast covers Gulf of America bays</p>
+      <p class="small mb-0">NOAA's NGOFS2 model doesn't reach this station's area.</p></div>`;
+    salModal.show(); return;
+  }
+  salFrames = salData.frames || [];
+  if (!salFrames.length) {
+    body.innerHTML = `<div class="py-5 text-muted">${salData.error || 'No salinity forecast available right now.'}</div>`;
+    salModal.show(); return;
+  }
+  salIdx = 0; salPlaying = true;
+  body.innerHTML = `
+    <img id="salImg" src="${salFrames[0].url}" alt="salinity forecast"
+         style="max-width:100%;max-height:60vh;border-radius:.375rem;">
+    <div class="d-flex align-items-center gap-2 mt-2 px-2">
+      <button id="salPlay" class="btn btn-sm btn-outline-info"><i class="bi bi-pause-fill"></i></button>
+      <input id="salSlider" type="range" class="form-range flex-grow-1" min="0" max="${salFrames.length-1}" value="0">
+      <span id="salTime" class="small text-info" style="min-width:120px;text-align:right;">${salFrames[0].label}</span>
+    </div>
+    <div class="text-muted" style="font-size:.7rem">NOAA NGOFS2 surface-salinity forecast (PSU)</div>`;
+  salFrames.forEach(f => { const im = new Image(); im.src = f.url; });   // preload
+  const img    = document.getElementById('salImg');
+  const slider = document.getElementById('salSlider');
+  const timeEl = document.getElementById('salTime');
+  const playBtn= document.getElementById('salPlay');
+  const showFrame = i => { salIdx = i; img.src = salFrames[i].url; slider.value = i; timeEl.textContent = salFrames[i].label; };
+  function step() {
+    salTimer = setTimeout(() => {
+      if (!salPlaying) return;
+      showFrame(salIdx >= salFrames.length - 1 ? 0 : salIdx + 1);
+      step();
+    }, salIdx >= salFrames.length - 1 ? 1400 : 550);
+  }
+  playBtn.addEventListener('click', () => {
+    salPlaying = !salPlaying;
+    playBtn.innerHTML = salPlaying ? '<i class="bi bi-pause-fill"></i>' : '<i class="bi bi-play-fill"></i>';
+    if (salPlaying) { if (salIdx >= salFrames.length-1) salIdx = 0; step(); } else clearTimeout(salTimer);
+  });
+  slider.addEventListener('input', () => {
+    salPlaying = false; playBtn.innerHTML = '<i class="bi bi-play-fill"></i>';
+    clearTimeout(salTimer); showFrame(parseInt(slider.value, 10));
+  });
+  step();
+  salModal.show();
+});
+document.getElementById('salModal').addEventListener('hidden.bs.modal', () => {
+  salPlaying = false; clearTimeout(salTimer);
+});
 
 // ── Auto-load from URL params (bookmarkable links) ────────────────────────────
 (function() {
