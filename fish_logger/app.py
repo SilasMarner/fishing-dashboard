@@ -899,6 +899,13 @@ def _salinity_frames(region_code: str) -> list:
         _sal_cache[region_code] = (now, frames)
         return frames
 
+@app.route("/map/salinity")
+def map_salinity():
+    """Standalone full-page salinity loop (opened in a new tab from buttons)."""
+    return render_template("salinity_map.html",
+                           station_id=request.args.get("id", "").strip(),
+                           name=request.args.get("name", "Station"))
+
 @app.route("/api/maps/<station_id>")
 def api_maps(station_id):
     """Coords + salinity-loop frames for a station's Wind/Salinity map buttons."""
