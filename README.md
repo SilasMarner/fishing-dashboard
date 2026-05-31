@@ -289,7 +289,17 @@ You can upload individual files, drag-and-drop, or click **Choose a folder** to 
 
 Then run the **AI Analysis** over the imported history to surface the patterns in your friend's years of records.
 
-**Requirements:** set `ANTHROPIC_API_KEY` (and optionally `IMPORT_MODEL`, default `claude-opus-4-8`) in `.env`. This is independent of `AI_PROVIDER` — the text-analysis report can stay on Groq/xAI while import uses Claude vision. If no key is set, the Import page shows a disabled notice.
+**OCR method (dropdown on the Import page):**
+
+| Method | Cost | Notes |
+|---|---|---|
+| **Tesseract** (default) | Free, on-device | No API key. Runs in the container. Best on neat printing; weak on cursive. |
+| **OCR.space** | Free, online | `api.ocr.space` handwriting engine. Set `OCR_SPACE_API_KEY` or use the demo key. |
+| **Claude vision** | Uses Anthropic credits | Best for cursive/messy handwriting — does OCR + structuring in one pass. |
+
+The two free methods OCR the page to raw text, then the **free Groq model** (the same `AI_PROVIDER` used for the analysis report) structures that text into entries — correcting obvious OCR slips using fishing context. So the fully-free path needs `GROQ_API_KEY`; Claude vision needs `ANTHROPIC_API_KEY`. The dropdown disables any method whose key isn't set, and defaults to `OCR_PROVIDER` (default `tesseract`).
+
+> **Note on conditions:** imported historical entries are backfilled from the exporter for their own date where available, and otherwise left blank — they are **never** filled with today's live weather. Any conditions written on the page are preserved verbatim in the entry notes.
 
 #### Bulk import from the command line — `scripts/import_logs.py`
 
@@ -308,7 +318,7 @@ python3 scripts/import_logs.py --commit-file proposed.json -l freeport_tx
 python3 scripts/import_logs.py -d ~/scans/freeport -l freeport_tx -y
 ```
 
-Useful flags (`--help` for all): `-r/--recursive`, `-b/--batch N` (group N scans that are pages of one multi-page log), `--model` (override `IMPORT_MODEL` per run), `--min-confidence 0.6` (drop low-confidence rows), `--host` (target a remote fish-logger), `--limit N` (test on the first N files), `--sleep`/`--retries` (rate-limit handling). A bad key / no credits / no model access is reported as fatal and aborts the run immediately rather than retrying every page.
+Useful flags (`--help` for all): `--ocr {tesseract,ocr_space,anthropic}` (default `tesseract` — the free path), `-r/--recursive`, `-b/--batch N` (group N scans that are pages of one multi-page log), `--model` (override the structuring/vision model per run), `--min-confidence 0.6` (drop low-confidence rows), `--host` (target a remote fish-logger), `--limit N` (test on the first N files), `--sleep`/`--retries` (rate-limit handling). A bad key / no credits / no model access is reported as fatal and aborts the run immediately rather than retrying every page.
 
 ---
 
