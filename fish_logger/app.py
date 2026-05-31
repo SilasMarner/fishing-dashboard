@@ -1205,10 +1205,16 @@ def api_import_extract():
     except Exception as e:
         log.exception("Import extraction failed")
         msg = str(e)
+        msg_l = msg.lower()
+        # A 429 rate-limit is transient (retryable) — never fatal. Guard this first
+        # because Groq's rate-limit message embeds a "…/settings/billing" upgrade URL
+        # that would otherwise trip the "billing" keyword below and abort the whole run.
+        rate_limited = any(k in msg_l for k in
+                           ("rate_limit", "rate limit", "too many requests", " 429", "429 "))
         # Permanent problems (bad/no key, no credits, no model access) won't fix
         # themselves — flag them 402 so the bulk CLI aborts instead of retrying
         # the same error on every page. Everything else is treated as transient.
-        fatal = any(k in msg.lower() for k in
+        fatal = (not rate_limited) and any(k in msg_l for k in
                     ("credit balance", "billing", "authentication", "x-api-key",
                      "permission", "not_found_error", "invalid api key", "not set"))
         return jsonify({"status": "error", "message": msg, "fatal": fatal}), (402 if fatal else 502)
