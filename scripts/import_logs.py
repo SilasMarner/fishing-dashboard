@@ -95,7 +95,7 @@ def extract_batch(session, host, location, model, batch: list[Path], args) -> di
             fh = open(p, "rb")
             handles.append(fh)
             files.append(("images", (p.name, fh, media_type(p))))
-        data = {"location": location}
+        data = {"location": location, "ocr": args.ocr}
         if model:
             data["model"] = model
         resp = post_with_retry(session, f"{host}/api/import/extract",
@@ -155,7 +155,7 @@ def run_extract(args) -> list[dict]:
     batch_size = max(1, min(args.batch, MAX_BATCH))
     batches = [images[i:i + batch_size] for i in range(0, len(images), batch_size)]
     print(f"Found {len(images)} image(s) in {directory} → {len(batches)} batch(es) "
-          f"of up to {batch_size}, location='{args.location}'"
+          f"of up to {batch_size}, location='{args.location}', ocr='{args.ocr}'"
           + (f", model='{args.model}'" if args.model else "") + "\n")
 
     session = requests.Session()
@@ -230,7 +230,10 @@ def main():
     ap.add_argument("-b", "--batch", type=int, default=1,
                     help=f"Images per extract request, 1-{MAX_BATCH} (default 1). "
                          "Use >1 only when several scans are pages of ONE multi-page log.")
-    ap.add_argument("--model", help="Override the server's IMPORT_MODEL for this run.")
+    ap.add_argument("--ocr", choices=("tesseract", "ocr_space", "anthropic"), default="tesseract",
+                    help="OCR method (default: tesseract — free, on-device). "
+                         "ocr_space = free online; anthropic = Claude vision (uses credits).")
+    ap.add_argument("--model", help="Override the structuring/vision model for this run.")
     ap.add_argument("--min-confidence", type=float, default=0.0,
                     help="Drop entries below this confidence (0-1) before committing.")
     ap.add_argument("--dry-run", action="store_true",

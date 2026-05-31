@@ -22,17 +22,34 @@
 <div class="card mb-4">
   <div class="card-header d-flex justify-content-between align-items-center">
     <span><i class="bi bi-cloud-upload"></i> Upload handwritten log pages — {{ locations[selected] }}</span>
-    <span class="text-muted small"><i class="bi bi-robot"></i> {{ model }}</span>
   </div>
   <div class="card-body">
     <p class="text-muted small mb-3">
-      Snap a photo or scan of each handwritten page (JPEG/PNG/WebP). Claude transcribes
-      every catch, maps it to a known species, and proposes log entries. Nothing is saved
-      until you review and click <strong>Import</strong>. Tide / weather / solunar conditions
-      are backfilled automatically from NOAA for each entry's date.
+      Snap a photo or scan of each handwritten page (JPEG/PNG/WebP). The page is read,
+      every catch mapped to a known species, and proposed log entries are generated.
+      Nothing is saved until you review and click <strong>Import</strong>. Tide / weather /
+      solunar conditions are backfilled automatically from NOAA for each entry's date.
     </p>
 
     <input type="hidden" id="location" value="{{ selected }}">
+
+    <div class="mb-3" style="max-width:30rem">
+      <label class="form-label small"><i class="bi bi-eye"></i> OCR method</label>
+      <select id="ocrMethod" class="form-select" {% if not import_enabled %}disabled{% endif %}>
+        {% for key, label in methods.items() %}
+        <option value="{{ key }}"
+                {% if not methods_available[key] %}disabled{% endif %}
+                {% if key == default_method %}selected{% endif %}>
+          {{ label }}{% if not methods_available[key] %} — key not set{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+      <div class="form-text">
+        Tesseract is free and runs on the server (best on neat printing). Claude vision is
+        far better for cursive but uses Anthropic credits. OCR text is structured into entries
+        by the free Groq model.
+      </div>
+    </div>
 
     <label for="fileInput"
            id="dropZone"
@@ -222,6 +239,7 @@ extractBtn.addEventListener('click', async () => {
 
   const fd = new FormData();
   fd.append('location', document.getElementById('location').value);
+  fd.append('ocr', document.getElementById('ocrMethod').value);
   files.forEach(f => fd.append('images', f));
 
   try {
@@ -233,7 +251,7 @@ extractBtn.addEventListener('click', async () => {
     body.innerHTML = '';
     (data.entries || []).forEach(e => body.appendChild(entryRow(e)));
     document.getElementById('entryCount').textContent =
-      (data.entries || []).length + ' entries from ' + data.pages + ' page(s)';
+      (data.entries || []).length + ' entries from ' + data.pages + ' page(s) · ' + (data.method || '');
     document.getElementById('transcript').textContent = data.transcription || '';
     const un = document.getElementById('unreadableNote');
     if (data.unreadable) { un.textContent = '⚠ ' + data.unreadable; un.classList.remove('d-none'); }

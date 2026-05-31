@@ -35,13 +35,26 @@ PORT                 = int(os.environ.get("PORT", "9879"))
 APP_TZ               = ZoneInfo("America/Chicago")
 # GEMINI_KEY     = os.environ.get("GEMINI_API_KEY", "")      # ── uncomment to use Gemini instead
 
-# ── Handwritten-log import (Claude vision) ─────────────────────────────────────
-# Separate from AI_PROVIDER above: image transcription needs a vision model, so the
-# import feature always uses Anthropic Claude regardless of the text-analysis provider.
+# ── Handwritten-log import ─────────────────────────────────────────────────────
+# Two routes to structured entries:
+#   • OCR methods (tesseract / ocr_space) read the page to raw text — FREE — then the
+#     existing text provider (Groq/xAI, AI_PROVIDER) structures that text into entries.
+#   • anthropic: Claude vision does OCR + structuring in one shot (best for handwriting,
+#     uses Anthropic credits).
 ANTHROPIC_KEY        = os.environ.get("ANTHROPIC_API_KEY", "")
 IMPORT_MODEL         = os.environ.get("IMPORT_MODEL", "claude-opus-4-8")
 IMPORT_MAX_IMAGES    = int(os.environ.get("IMPORT_MAX_IMAGES", "20"))
 ALLOWED_IMG_TYPES    = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+# OCR method selection (default = the free, on-device option)
+OCR_PROVIDER_DEFAULT = os.environ.get("OCR_PROVIDER", "tesseract").lower()
+OCR_SPACE_API_KEY    = os.environ.get("OCR_SPACE_API_KEY", "helloworld")  # free demo key
+OCR_SPACE_URL        = "https://api.ocr.space/parse/image"
+# label shown in the /import dropdown
+OCR_METHODS = {
+    "tesseract": "Tesseract — free, on-device",
+    "ocr_space": "OCR.space — free, online",
+    "anthropic": "Claude vision — best for handwriting (uses credits)",
+}
 
 # ── Species by location ────────────────────────────────────────────────────────
 SPECIES = {
@@ -338,16 +351,22 @@ def get_conditions(location: str) -> dict:
     return cond
 
 
-def get_conditions_for_date(location: str, target_dt: datetime) -> dict:
-    """Return conditions for any datetime. Uses Prometheus for today, exporter query for other dates."""
+def get_conditions_for_date(location: str, target_dt: datetime,
+                            allow_live_fallback: bool = True) -> dict:
+    """Return conditions for any datetime. Uses Prometheus for today, exporter query for other dates.
+
+    allow_live_fallback=False is for historical imports: if the exporter query
+    fails we return empty conditions rather than poisoning an old entry with
+    *today's* live weather (and we skip the live path entirely).
+    """
     today = datetime.now(tz=APP_TZ).date()
-    if target_dt.date() == today:
+    if target_dt.date() == today and allow_live_fallback:
         return get_conditions(location)
     try:
         r = requests.get(
             f"{EXPORTER_QUERY_URL}/query",
             params={"location": location, "date": target_dt.strftime("%Y%m%d")},
-            timeout=15,
+            timeout=(15 if allow_live_fallback else 6),
         )
         r.raise_for_status()
         data = r.json()
@@ -386,7 +405,7 @@ def get_conditions_for_date(location: str, target_dt: datetime) -> dict:
         }
     except Exception as exc:
         log.warning("Exporter query failed for %s %s: %s", location, target_dt.date(), exc)
-        return get_conditions(location)
+        return get_conditions(location) if allow_live_fallback else {}
 
 # ── AI analysis ────────────────────────────────────────────────────────────────
 TREND_LABEL = {"-1.0": "falling", "-1": "falling", "0.0": "steady", "0": "steady",
@@ -668,6 +687,121 @@ def extract_entries_from_images(images: list[tuple[str, bytes]], location: str,
             return block.input
     raise RuntimeError("Claude returned no structured entries.")
 
+# ── Free OCR path: read image → raw text, then structure with the text provider ─
+def _ocr_tesseract(images: list[tuple[str, bytes]]) -> str:
+    """On-device OCR with Tesseract. Free, no network. Best on neat printing."""
+    import io
+    import pytesseract
+    from PIL import Image
+    pages = []
+    for i, (_, raw) in enumerate(images, 1):
+        img = Image.open(io.BytesIO(raw))
+        pages.append(f"--- page {i} ---\n" + pytesseract.image_to_string(img))
+    return "\n\n".join(pages).strip()
+
+def _ocr_space(images: list[tuple[str, bytes]]) -> str:
+    """Free online OCR via api.ocr.space (handwriting engine 2)."""
+    pages = []
+    for i, (media_type, raw) in enumerate(images, 1):
+        resp = requests.post(
+            OCR_SPACE_URL,
+            data={"apikey": OCR_SPACE_API_KEY, "OCREngine": "2", "scale": "true",
+                  "isOverlayRequired": "false"},
+            files={"file": (f"page{i}", raw, media_type)},
+            timeout=60,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if data.get("IsErroredOnProcessing"):
+            raise RuntimeError("OCR.space error: " + "; ".join(data.get("ErrorMessage") or ["unknown"]))
+        parsed = "".join(r.get("ParsedText", "") for r in data.get("ParsedResults") or [])
+        pages.append(f"--- page {i} ---\n{parsed}")
+    return "\n\n".join(pages).strip()
+
+def structure_text_to_entries(text: str, location: str, model: str | None = None) -> dict:
+    """Turn raw OCR text into structured entries using the free text provider (Groq/xAI).
+
+    OCR is noisy — the LLM also corrects obvious misreads using fishing context
+    (species names, plausible dates/sizes). Returns {"entries":[...], "unreadable":...}.
+    """
+    if AI_PROVIDER == "xai":
+        if not XAI_KEY:
+            raise RuntimeError("XAI_API_KEY not set — needed to structure OCR text.")
+        client = OpenAI(api_key=XAI_KEY, base_url="https://api.x.ai/v1")
+        model = model or "grok-3-mini"
+    else:
+        if not GROQ_KEY:
+            raise RuntimeError("GROQ_API_KEY not set — needed to structure OCR text. "
+                               "Set it (free at console.groq.com) or use the Claude method.")
+        client = OpenAI(api_key=GROQ_KEY, base_url="https://api.groq.com/openai/v1")
+        model = model or "llama-3.3-70b-versatile"
+
+    if not text.strip():
+        return {"entries": [], "unreadable": "OCR produced no text — the scan may be blank or too faint."}
+
+    location_name = LOCATION_NAMES.get(location, location)
+    species_list  = SPECIES.get(location, [])
+    prompt = (
+        f"You are digitizing a handwritten Gulf Coast fishing log for {location_name}. "
+        "Below is noisy OCR text from the scanned page(s). Reconstruct the fishing entries "
+        "as structured data, correcting obvious OCR errors using fishing context.\n\n"
+        "Return ONLY a JSON object of this exact shape:\n"
+        '{"entries":[{"catch_date":"YYYY-MM-DD","catch_time":"HH:MM or null",'
+        '"species":"canonical name","species_raw":"as written or null","caught":true,'
+        '"fish_count":1,"size_in":null,"weight_lbs":null,"page_conditions":"tide/weather/bait notes or null",'
+        '"notes":"other remarks or null","confidence":0.0}],'
+        '"unreadable":"note anything illegible, or null"}\n\n'
+        "Rules:\n"
+        "- One entry per catch line. A blank/skunk trip with no fish is a valid entry with caught=false.\n"
+        f"- Map each species to the closest name in this list (use 'Other' if none fit):\n{json.dumps(species_list)}\n"
+        "- Anglers abbreviate: 'trout'=Spotted Seatrout, 'red'/'rat red'=Red Drum (Redfish), "
+        "'flounder'=Southern Flounder, 'sheepy'=Sheepshead.\n"
+        "- Infer full YYYY-MM-DD dates from context; lower confidence when unsure. Never invent fish.\n\n"
+        f"OCR TEXT:\n{text}"
+    )
+    completion = client.chat.completions.create(
+        model=model,
+        max_tokens=4000,
+        response_format={"type": "json_object"},
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = completion.choices[0].message.content or "{}"
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        m = re.search(r"\{.*\}", raw, re.S)
+        data = json.loads(m.group(0)) if m else {"entries": []}
+    data.setdefault("entries", [])
+    return data
+
+def extract_log_entries(images: list[tuple[str, bytes]], location: str,
+                        method: str, model: str | None = None) -> dict:
+    """Dispatch to the chosen import method and normalize the result shape."""
+    if method == "anthropic":
+        result = extract_entries_from_images(images, location, model=model)
+        result["ocr_method"] = "anthropic"
+        return result
+
+    if method == "ocr_space":
+        text = _ocr_space(images)
+    else:                                    # default: tesseract
+        method = "tesseract"
+        text = _ocr_tesseract(images)
+
+    result = structure_text_to_entries(text, location, model=model)
+    result["transcription"] = text
+    result["ocr_method"] = method
+    return result
+
+def import_methods_available() -> dict:
+    """Which import methods are usable given the configured keys."""
+    text_ok = bool(GROQ_KEY or XAI_KEY)      # needed to structure OCR text
+    return {
+        "tesseract": text_ok,
+        "ocr_space": text_ok,
+        "anthropic": bool(ANTHROPIC_KEY),
+    }
+
 def _entry_dt(entry: dict) -> datetime:
     """Combine an extracted entry's date + time into a tz-aware datetime."""
     raw = (entry.get("catch_date") or "").strip()
@@ -680,19 +814,26 @@ def _entry_dt(entry: dict) -> datetime:
     # fall back to date-only at noon
     return datetime.strptime(raw, "%Y-%m-%d").replace(hour=12, tzinfo=APP_TZ)
 
-def insert_imported_entry(conn, location: str, entry: dict) -> None:
-    """Insert one reviewed import entry, backfilling NOAA/solunar conditions for its date.
+def insert_imported_entry(conn, location: str, entry: dict, cond_cache: dict | None = None) -> None:
+    """Insert one reviewed import entry, backfilling historical conditions for its date.
 
     Conditions the angler wrote on the page are preserved in `notes`; the numeric
-    condition columns are backfilled from the historical exporter so imported rows
-    analyze consistently alongside live-logged catches.
+    columns are backfilled from the historical exporter (NOT today's live weather)
+    so imported rows analyze correctly. `cond_cache` memoizes by date so several
+    catches on the same day cost a single lookup during a bulk import.
     """
     catch_dt = _entry_dt(entry)
-    try:
-        cond = get_conditions_for_date(location, catch_dt)
-    except Exception as e:                       # historical backfill is best-effort
-        log.warning("Condition backfill failed for %s: %s", catch_dt.date(), e)
-        cond = {}
+    key = catch_dt.date().isoformat()
+    if cond_cache is not None and key in cond_cache:
+        cond = cond_cache[key]
+    else:
+        try:                                     # historical backfill is best-effort
+            cond = get_conditions_for_date(location, catch_dt, allow_live_fallback=False)
+        except Exception as e:
+            log.warning("Condition backfill failed for %s: %s", key, e)
+            cond = {}
+        if cond_cache is not None:
+            cond_cache[key] = cond
 
     note_parts = []
     if entry.get("notes"):           note_parts.append(str(entry["notes"]).strip())
@@ -955,12 +1096,18 @@ def api_log():
 # ── Handwritten-log import routes ──────────────────────────────────────────────
 @app.route("/import")
 def import_page():
-    location = request.args.get("location", "freeport_tx")
+    location  = request.args.get("location", "freeport_tx")
+    available = import_methods_available()
+    default   = OCR_PROVIDER_DEFAULT if available.get(OCR_PROVIDER_DEFAULT) else \
+                next((m for m, ok in available.items() if ok), OCR_PROVIDER_DEFAULT)
     return render_template("import.html",
                            locations=LOCATION_NAMES,
                            species=SPECIES,
                            selected=location,
-                           import_enabled=bool(ANTHROPIC_KEY),
+                           import_enabled=any(available.values()),
+                           methods=OCR_METHODS,
+                           methods_available=available,
+                           default_method=default,
                            model=IMPORT_MODEL)
 
 @app.route("/api/import/extract", methods=["POST", "OPTIONS"])
@@ -972,12 +1119,15 @@ def api_import_extract():
     """
     if request.method == "OPTIONS":
         return "", 204
-    if not ANTHROPIC_KEY:
-        return jsonify({"status": "error",
-                        "message": "ANTHROPIC_API_KEY not set on the server."}), 503
 
     location = request.form.get("location", "freeport_tx")
-    model    = request.form.get("model") or IMPORT_MODEL
+    method   = (request.form.get("ocr") or OCR_PROVIDER_DEFAULT).lower()
+    if method not in OCR_METHODS:
+        return jsonify({"status": "error", "message": f"Unknown OCR method: {method}"}), 400
+    if not import_methods_available().get(method):
+        need = "ANTHROPIC_API_KEY" if method == "anthropic" else "GROQ_API_KEY (or XAI_API_KEY)"
+        return jsonify({"status": "error", "message": f"Method '{method}' unavailable — {need} not set."}), 503
+    model = request.form.get("model") or None
     files = request.files.getlist("images")
     if not files:
         return jsonify({"status": "error", "message": "No images uploaded."}), 400
@@ -994,7 +1144,7 @@ def api_import_extract():
         images.append((mt, fs.read()))
 
     try:
-        result = extract_entries_from_images(images, location, model=model)
+        result = extract_log_entries(images, location, method, model=model)
     except Exception as e:
         log.exception("Import extraction failed")
         msg = str(e)
@@ -1003,14 +1153,14 @@ def api_import_extract():
         # the same error on every page. Everything else is treated as transient.
         fatal = any(k in msg.lower() for k in
                     ("credit balance", "billing", "authentication", "x-api-key",
-                     "permission", "not_found_error", "invalid api key"))
+                     "permission", "not_found_error", "invalid api key", "not set"))
         return jsonify({"status": "error", "message": msg, "fatal": fatal}), (402 if fatal else 502)
 
     entries = result.get("entries", []) if isinstance(result, dict) else []
     return jsonify({
         "status": "ok",
         "location": location,
-        "model": model,
+        "method": result.get("ocr_method", method) if isinstance(result, dict) else method,
         "pages": len(images),
         "entries": entries,
         "transcription": result.get("transcription", "") if isinstance(result, dict) else "",
@@ -1029,10 +1179,11 @@ def api_import_commit():
         return jsonify({"status": "error", "message": "No entries to import."}), 400
 
     inserted, errors = 0, []
+    cond_cache: dict = {}        # memoize conditions per date across this batch
     with sqlite3.connect(DB_PATH) as conn:
         for i, entry in enumerate(entries):
             try:
-                insert_imported_entry(conn, location, entry)
+                insert_imported_entry(conn, location, entry, cond_cache)
                 inserted += 1
             except Exception as e:
                 errors.append({"index": i, "message": str(e),

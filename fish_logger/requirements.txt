@@ -2,4 +2,6 @@ flask>=3.0
 openai>=1.0
 requests>=2.32
 anthropic>=0.40       # Claude vision — handwritten-log import (/import)
+pytesseract>=0.3.10   # free on-device OCR (needs tesseract-ocr system pkg, see Dockerfile)
+Pillow>=10.0          # image loading for OCR
 # google-genai>=1.0   # uncomment to use Gemini instead of Grok

@@ -28,9 +28,12 @@ services:
       - AI_PROVIDER=${AI_PROVIDER:-groq}
       - GROQ_API_KEY=${GROQ_API_KEY}
       - XAI_API_KEY=${XAI_API_KEY}
-      # Claude vision — handwritten-log import (/import). Independent of AI_PROVIDER.
+      # Handwritten-log import (/import): free OCR (tesseract/ocr.space) → Groq structuring,
+      # or Claude vision. OCR_PROVIDER picks the default method shown in the dropdown.
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - IMPORT_MODEL=${IMPORT_MODEL:-claude-opus-4-8}
+      - OCR_PROVIDER=${OCR_PROVIDER:-tesseract}
+      - OCR_SPACE_API_KEY=${OCR_SPACE_API_KEY:-helloworld}
       - ANALYSIS_INTERVAL_HOURS=6
       - PORT=9879
     ports:
