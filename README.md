@@ -267,13 +267,30 @@ The conditions panel on the right updates live as you change the date picker —
 
 ### AI Analysis
 
-The AI scheduler runs automatically every 6 hours (configurable via `ANALYSIS_INTERVAL_HOURS`). To trigger it manually:
+Analysis runs **on-demand only** — click **Run Now** in the Analysis tab of the web UI, or:
 
 ```bash
 curl -X POST http://localhost:9879/api/analyze/freeport_tx
+# pick a specific model (e.g. to dodge a rate-limited default):
+curl -X POST "http://localhost:9879/api/analyze/freeport_tx?model=meta-llama/llama-4-scout-17b-16e-instruct"
 ```
 
-Or click **Run Now** in the Analysis tab of the web UI.
+A periodic background scheduler used to re-run every location every few hours, which
+quietly burned the LLM's daily token budget for little benefit. It's now **off by
+default**; set `ANALYSIS_AUTO=true` (interval via `ANALYSIS_INTERVAL_HOURS`) to bring it
+back. The report model defaults to `llama-3.3-70b-versatile` (Groq) / `grok-3-mini`
+(xAI) and can be pinned with `ANALYSIS_MODEL` or the per-request `?model=` override.
+
+### Exporting your data
+
+Download the catch database straight from the **🐟 Log a Catch** panel on the Grafana
+board (or the **History** page in the web UI):
+
+```bash
+curl -OJ http://localhost:9879/api/export/fish_log.csv                 # all catches, CSV
+curl -OJ "http://localhost:9879/api/export/fish_log.csv?location=freeport_tx"  # one location
+curl -OJ http://localhost:9879/api/export/fish_log.db                  # full SQLite file
+```
 
 ### Importing handwritten logs (`/import`)
 
@@ -339,6 +356,8 @@ Useful flags (`--help` for all): `--ocr {tesseract,ocr_space,anthropic}` (defaul
 | `GET` | `/api/tides/station?id=<noaa_id>&date=YYYY-MM-DD` | NOAA tide predictions proxy for any station |
 | `GET` | `/api/maps/<station_id>` | Station coords + nearest NGOFS2 salinity-forecast frames (Wind/Salinity buttons) |
 | `GET` | `/api/weather?lat=<lat>&lng=<lng>&date=YYYY-MM-DD` | NWS weather for arbitrary coordinates (Grafana station-search panel) |
+| `GET` | `/api/export/fish_log.csv` | Download the catch log as CSV (optional `?location=` filter) |
+| `GET` | `/api/export/fish_log.db` | Download the full SQLite database (consistent online-backup copy) |
 | `GET` | `/healthz` | Liveness probe — returns `ok` |
 
 ---
@@ -395,7 +414,9 @@ The dashboard uses two Grafana plugins:
 | `PROMETHEUS_DATA_DIR` | No | `./prometheus/data` | Prometheus TSDB storage |
 | `GRAFANA_DATA_DIR` | No | `./grafana/data` | Grafana persistent storage |
 | `GRAFANA_PROVISIONING_DIR` | No | `./grafana/provisioning` | Grafana provisioning configs |
-| `ANALYSIS_INTERVAL_HOURS` | No | `6` | AI analysis re-run interval |
+| `ANALYSIS_AUTO` | No | `false` | Enable the background analysis scheduler (off = on-demand only) |
+| `ANALYSIS_INTERVAL_HOURS` | No | `6` | Scheduler re-run interval (only when `ANALYSIS_AUTO=true`) |
+| `ANALYSIS_MODEL` | No | provider default | Override the analysis report model (e.g. `meta-llama/llama-4-scout-17b-16e-instruct`) |
 | `DB_PATH` | No | `/data/fish_log.db` | Path inside fish-logger container |
 | `PROMETHEUS_URL` | No | `http://prometheus:9090` | Prometheus URL seen by fish-logger |
 | `EXPORTER_QUERY_URL` | No | `http://localhost:9878` | Exporter on-demand query endpoint for historical/forecast conditions |
@@ -443,7 +464,7 @@ docker logs fish-logger | grep -i "groq\|analysis\|error"
 curl -s http://localhost:9879/api/conditions/freeport_tx  # verify app is reachable
 ```
 
-Make sure `GROQ_API_KEY` (or `XAI_API_KEY` if using `AI_PROVIDER=xai`) is set and valid. The scheduler waits 90 s after startup before the first run.
+Make sure `GROQ_API_KEY` (or `XAI_API_KEY` if using `AI_PROVIDER=xai`) is set and valid. Analysis is on-demand — use **Run Now** / `POST /api/analyze/<location>`. If it errors with a 429/`tokens per day` message, the model's daily free-tier budget is spent; retry with a different `?model=` or wait for the daily reset.
 
 ---
 

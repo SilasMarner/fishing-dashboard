@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 # from google import genai  # ── Gemini (commented out; see run_ai_analysis below)
 from openai import OpenAI
 import requests
-from flask import Flask, jsonify, redirect, render_template, request, url_for
+from flask import Flask, Response, jsonify, redirect, render_template, request, send_file, url_for
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("fish_logger")
@@ -31,6 +31,12 @@ GROQ_KEY             = os.environ.get("GROQ_API_KEY", "")
 XAI_KEY              = os.environ.get("XAI_API_KEY", "")
 AI_PROVIDER          = os.environ.get("AI_PROVIDER", "groq").lower()  # "groq" or "xai"
 ANALYSIS_HOURS       = int(os.environ.get("ANALYSIS_INTERVAL_HOURS", "6"))
+# Analysis runs ON-DEMAND only (the /analysis page button → /api/analyze). The old
+# background scheduler re-ran every location every ANALYSIS_HOURS, which quietly burned
+# the daily LLM token budget; set ANALYSIS_AUTO=true to bring that back if ever wanted.
+ANALYSIS_AUTO        = os.environ.get("ANALYSIS_AUTO", "false").lower() in ("1", "true", "yes", "on")
+# Model used for the analysis report; override to dodge per-model rate limits.
+ANALYSIS_MODEL       = os.environ.get("ANALYSIS_MODEL", "") or None
 PORT                 = int(os.environ.get("PORT", "9879"))
 APP_TZ               = ZoneInfo("America/Chicago")
 # GEMINI_KEY     = os.environ.get("GEMINI_API_KEY", "")      # ── uncomment to use Gemini instead
@@ -444,7 +450,7 @@ def _season_name() -> str:
     if m in (9, 10, 11): return "Fall"
     return "Winter"
 
-def run_ai_analysis(location: str, window: str = "all") -> str:
+def run_ai_analysis(location: str, window: str = "all", model: str | None = None) -> str:
     if AI_PROVIDER == "xai" and not XAI_KEY:
         return "AI analysis unavailable — XAI_API_KEY not set."
     if AI_PROVIDER != "xai" and not GROQ_KEY:
@@ -536,11 +542,11 @@ Data:
     if AI_PROVIDER == "xai":
         # xAI / Grok — https://console.x.ai  (set XAI_API_KEY in .env)
         client = OpenAI(api_key=XAI_KEY, base_url="https://api.x.ai/v1")
-        model  = "grok-3-mini"
+        model  = model or ANALYSIS_MODEL or "grok-3-mini"
     else:
         # Groq (default) — https://console.groq.com  (set GROQ_API_KEY in .env)
         client = OpenAI(api_key=GROQ_KEY, base_url="https://api.groq.com/openai/v1")
-        model  = "llama-3.3-70b-versatile"
+        model  = model or ANALYSIS_MODEL or "llama-3.3-70b-versatile"
 
     completion = client.chat.completions.create(
         model=model,
@@ -1090,8 +1096,9 @@ def api_analyze(location):
     window = request.args.get("window", "all")
     if window not in ANALYSIS_WINDOWS:
         window = "all"
+    model = request.args.get("model") or None
     try:
-        content = run_ai_analysis(location, window)
+        content = run_ai_analysis(location, window, model=model)
         save_analysis(location, content, window)
         return jsonify({"status": "ok", "content": content})
     except Exception as exc:
@@ -1646,6 +1653,56 @@ def embed():
     """Self-contained log form for Grafana iframe — no navbar, pure AJAX, no page navigation."""
     return render_template("embed.html", species=SPECIES, locations=LOCATION_NAMES)
 
+# ── Database export ────────────────────────────────────────────────────────────
+@app.route("/api/export/fish_log.csv")
+def export_fish_log_csv():
+    """Download the full catch log as CSV (opens in Excel/Sheets). Optional ?location= filter."""
+    import csv
+    import io
+    location = request.args.get("location", "").strip()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        if location:
+            rows = conn.execute("SELECT * FROM fish_log WHERE location=? ORDER BY logged_at DESC",
+                                (location,)).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM fish_log ORDER BY logged_at DESC").fetchall()
+        # column order is stable even when there are no rows
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(fish_log)")]
+
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(cols)
+    for r in rows:
+        w.writerow([r[c] for c in cols])
+
+    stamp = datetime.now(tz=APP_TZ).strftime("%Y%m%d")
+    fname = f"fish_log_{location + '_' if location else ''}{stamp}.csv"
+    return Response(buf.getvalue(), mimetype="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
+@app.route("/api/export/fish_log.db")
+def export_fish_log_db():
+    """Download the entire SQLite database as a consistent file (uses the online backup API
+    so an in-flight write can't corrupt the copy)."""
+    import tempfile
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp.close()
+    src = sqlite3.connect(DB_PATH)
+    try:
+        dst = sqlite3.connect(tmp.name)
+        with dst:
+            src.backup(dst)
+        dst.close()
+    finally:
+        src.close()
+    stamp = datetime.now(tz=APP_TZ).strftime("%Y%m%d")
+    return send_file(tmp.name, as_attachment=True,
+                     download_name=f"fish_log_{stamp}.db",
+                     mimetype="application/x-sqlite3")
+
+
 @app.route("/healthz")
 def healthz():
     return "ok"
@@ -1661,9 +1718,13 @@ if __name__ == "__main__":
     init_db()
     active_key = XAI_KEY if AI_PROVIDER == "xai" else GROQ_KEY
     active_var = "XAI_API_KEY" if AI_PROVIDER == "xai" else "GROQ_API_KEY"
-    if active_key:
-        log.info("AI analysis provider: %s", AI_PROVIDER)
+    if not active_key:
+        log.warning("%s not set — AI analysis disabled", active_var)
+    elif ANALYSIS_AUTO:
+        log.info("AI analysis provider: %s — background scheduler ON (every %dh, all locations)",
+                 AI_PROVIDER, ANALYSIS_HOURS)
         threading.Thread(target=analysis_scheduler, daemon=True).start()
     else:
-        log.warning("%s not set — AI analysis disabled", active_var)
+        log.info("AI analysis provider: %s — on-demand only (use the Analysis page button; "
+                 "set ANALYSIS_AUTO=true to re-enable the background scheduler)", AI_PROVIDER)
     app.run(host="0.0.0.0", port=PORT)
