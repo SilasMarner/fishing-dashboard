@@ -230,9 +230,9 @@ def main():
     ap.add_argument("-b", "--batch", type=int, default=1,
                     help=f"Images per extract request, 1-{MAX_BATCH} (default 1). "
                          "Use >1 only when several scans are pages of ONE multi-page log.")
-    ap.add_argument("--ocr", choices=("tesseract", "ocr_space", "anthropic"), default="tesseract",
-                    help="OCR method (default: tesseract — free, on-device). "
-                         "ocr_space = free online; anthropic = Claude vision (uses credits).")
+    ap.add_argument("--ocr", choices=("tesseract", "ocr_space", "anthropic"), default="ocr_space",
+                    help="OCR method (default: ocr_space — free online, best on handwriting). "
+                         "tesseract = free on-device; anthropic = Claude vision (uses credits).")
     ap.add_argument("--model", help="Override the structuring/vision model for this run.")
     ap.add_argument("--min-confidence", type=float, default=0.0,
                     help="Drop entries below this confidence (0-1) before committing.")

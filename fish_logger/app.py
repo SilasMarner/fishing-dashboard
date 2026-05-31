@@ -46,7 +46,7 @@ IMPORT_MODEL         = os.environ.get("IMPORT_MODEL", "claude-opus-4-8")
 IMPORT_MAX_IMAGES    = int(os.environ.get("IMPORT_MAX_IMAGES", "20"))
 ALLOWED_IMG_TYPES    = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 # OCR method selection (default = the free, on-device option)
-OCR_PROVIDER_DEFAULT = os.environ.get("OCR_PROVIDER", "tesseract").lower()
+OCR_PROVIDER_DEFAULT = os.environ.get("OCR_PROVIDER", "ocr_space").lower()
 OCR_SPACE_API_KEY    = os.environ.get("OCR_SPACE_API_KEY", "helloworld")  # free demo key
 OCR_SPACE_URL        = "https://api.ocr.space/parse/image"
 # label shown in the /import dropdown
@@ -226,6 +226,10 @@ def init_db():
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
                 logged_at     INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
                 location      TEXT NOT NULL,
+                -- specific spot / body of water written on the log (e.g. "West
+                -- Galveston Bay", "Cedar Lakes"); free-text, NOT one of the favorite
+                -- stations. Sortable in the catches view and surfaced in analysis.
+                caught_location TEXT,
                 species       TEXT NOT NULL,
                 caught        INTEGER NOT NULL DEFAULT 1,
                 fish_count    INTEGER DEFAULT 1,
@@ -258,6 +262,10 @@ def init_db():
                 model         TEXT
             );
         """)
+        # ── lightweight migrations for pre-existing DBs ──────────────────────────
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(fish_log)")}
+        if "caught_location" not in cols:
+            conn.execute("ALTER TABLE fish_log ADD COLUMN caught_location TEXT")
         conn.commit()
 
 # ── Prometheus helpers ─────────────────────────────────────────────────────────
@@ -480,6 +488,7 @@ def run_ai_analysis(location: str, window: str = "all") -> str:
         trend_raw = str(r["pressure_trend"]) if r["pressure_trend"] is not None else None
         entries.append({
             "date":           dt.strftime("%Y-%m-%d %H:%M %a"),
+            "spot":           r["caught_location"],
             "species":        r["species"],
             "caught":         bool(r["caught"]),
             "count":          r["fish_count"],
@@ -508,6 +517,9 @@ Which combinations of barometric pressure (and trend), tide stage/height, soluna
 
 ## Species Breakdown
 For each species with enough data, note the conditions that produced catches, typical sizes/weights if logged, and any notable patterns.
+
+## By Spot / Location
+Many entries record a specific spot or body of water in the "spot" field (e.g. "West Galveston Bay", "Cedar Lakes"). Break catches down by spot where it is recorded: which spots produced the most fish, which species at each, and any condition patterns specific to a spot. Note when the spot is blank/unknown rather than guessing.
 
 ## Best Windows to Fish {location_name}
 Summarize the optimal conditions for planning a trip: time of day patterns, tide phase, pressure range, solunar alignment, and seasonal notes if detectable.
@@ -595,6 +607,8 @@ IMPORT_TOOL = {
                                         "description": "Best match from the provided canonical species list. Use 'Other' if no reasonable match."},
                         "species_raw": {"type": ["string", "null"],
                                         "description": "Exactly what was written if it differs from the canonical name (abbreviations, slang)."},
+                        "caught_location": {"type": ["string", "null"],
+                                            "description": "The specific spot / body of water / area written on the page for this catch (e.g. 'West Galveston Bay', 'Cedar Lakes', 'Sargent jetty'). Null if none is written. Do NOT put GPS coordinates here."},
                         "caught":      {"type": "boolean",
                                         "description": "true if a fish was landed; false for an explicit skunk / no-catch line."},
                         "fish_count":  {"type": "integer", "description": "Number of this species caught on this line (default 1)."},
@@ -646,6 +660,9 @@ def extract_entries_from_images(images: list[tuple[str, bytes]], location: str,
         "- Anglers abbreviate (e.g. 'trout' = Spotted Seatrout, 'red'/'rat red' = Red Drum "
         "(Redfish), 'flounder' = Southern Flounder, 'sheepy' = Sheepshead). Use judgment.\n"
         "- A line noting a blank/skunk trip with no fish is a valid entry with caught=false.\n"
+        "- If the page names a specific spot or body of water (e.g. 'West Galveston Bay', "
+        "'Cedar Lakes', a named reef/jetty/cut), put it in caught_location — verbatim, one per "
+        "entry. This is NOT GPS coordinates and NOT the general region.\n"
         "- Preserve tide, weather, bait, and water notes verbatim in page_conditions — do NOT "
         "invent values you cannot read.\n"
         "- Dates may be abbreviated; infer the full YYYY-MM-DD from context (column headers, "
@@ -777,15 +794,19 @@ def structure_text_to_entries(text: str, location: str, model: str | None = None
         "Return ONLY a JSON object of this exact shape:\n"
         '{"entries":[{"catch_date":"YYYY-MM-DD","catch_time":"HH:MM or null",'
         '"species":"canonical name","species_raw":"as written or null","caught":true,'
-        '"fish_count":1,"size_in":null,"weight_lbs":null,"page_conditions":"tide/weather/bait notes or null",'
+        '"fish_count":1,"size_in":null,"weight_lbs":null,'
+        '"caught_location":"specific spot/body of water as written, or null",'
+        '"page_conditions":"tide/weather/bait notes or null",'
         '"notes":"other remarks or null","confidence":0.0}],'
         '"unreadable":"note anything illegible, or null"}\n\n'
         "Rules:\n"
         "- One entry per catch line, or one entry per filled-in tag form. A blank/skunk trip with no "
         "fish is a valid entry with caught=false.\n"
         "- On a tag form, map Total Length to size_in (inches). Keep the other tag-form fields "
-        "(Tag #, Fork Length, Girth, Sex, Angler Name, Fish Condition, Tackle, GPS/location, Trip) "
+        "(Tag #, Fork Length, Girth, Sex, Angler Name, Fish Condition, Tackle, GPS, Trip) "
         "in notes so nothing is lost.\n"
+        "- If a specific spot or body of water is written (e.g. 'West Galveston Bay', 'Cedar Lakes', "
+        "a named reef/jetty/cut), put it in caught_location — not GPS coordinates, not the region.\n"
         f"- Map each species to the closest name in this list (use 'Other' if none fit):\n{json.dumps(species_list)}\n"
         "- Anglers abbreviate: 'trout'=Spotted Seatrout, 'red'/'rat red'=Red Drum (Redfish), "
         "'flounder'=Southern Flounder, 'sheepy'=Sheepshead.\n"
@@ -878,18 +899,20 @@ def insert_imported_entry(conn, location: str, entry: dict, cond_cache: dict | N
     note_parts.append("[imported from handwritten log]")
     notes = " — ".join(p for p in note_parts if p) or None
 
+    caught_location = (entry.get("caught_location") or "").strip() or None
+
     conn.execute("""
         INSERT INTO fish_log (
             logged_at,
-            location, species, caught, fish_count, size_in, weight_lbs, notes,
+            location, caught_location, species, caught, fish_count, size_in, weight_lbs, notes,
             tide_height_ft, tide_stage, water_level_ft,
             pressure_mb, pressure_trend, temp_f, wind_speed_mph, wind_deg,
             precip_chance, humidity, cloud_cover,
             solunar_period, moon_phase_pct, fishing_score
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, (
         int(catch_dt.timestamp()),
-        location, entry.get("species") or "Other",
+        location, caught_location, entry.get("species") or "Other",
         1 if entry.get("caught") else 0,
         int(entry.get("fish_count") or 1),
         entry.get("size_in"), entry.get("weight_lbs"), notes,
@@ -944,20 +967,21 @@ def log_catch():
     size   = float(f["size_in"])    if f.get("size_in")    else None
     weight = float(f["weight_lbs"]) if f.get("weight_lbs") else None
     count  = int(f.get("fish_count") or 1)
+    caught_location = (f.get("caught_location") or "").strip() or None
 
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("""
             INSERT INTO fish_log (
                 logged_at,
-                location, species, caught, fish_count, size_in, weight_lbs, notes,
+                location, caught_location, species, caught, fish_count, size_in, weight_lbs, notes,
                 tide_height_ft, tide_stage, water_level_ft,
                 pressure_mb, pressure_trend, temp_f, wind_speed_mph, wind_deg,
                 precip_chance, humidity, cloud_cover,
                 solunar_period, moon_phase_pct, fishing_score
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             int(catch_dt.timestamp()),
-            location, f.get("species"), 1 if f.get("caught") == "yes" else 0,
+            location, caught_location, f.get("species"), 1 if f.get("caught") == "yes" else 0,
             count, size, weight, f.get("notes") or None,
             cond.get("tide_height_ft"), cond.get("tide_stage"), cond.get("water_level_ft"),
             cond.get("pressure_mb"), cond.get("pressure_trend"),
@@ -1105,19 +1129,20 @@ def api_log():
     cond     = get_conditions_for_date(location, catch_dt)
     size     = float(f["size_in"])    if f.get("size_in")    else None
     weight   = float(f["weight_lbs"]) if f.get("weight_lbs") else None
+    caught_location = (f.get("caught_location") or "").strip() or None
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("""
             INSERT INTO fish_log (
                 logged_at,
-                location, species, caught, fish_count, size_in, weight_lbs, notes,
+                location, caught_location, species, caught, fish_count, size_in, weight_lbs, notes,
                 tide_height_ft, tide_stage, water_level_ft,
                 pressure_mb, pressure_trend, temp_f, wind_speed_mph, wind_deg,
                 precip_chance, humidity, cloud_cover,
                 solunar_period, moon_phase_pct, fishing_score
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             int(catch_dt.timestamp()),
-            location, f.get("species"), 1 if f.get("caught") == "yes" else 0,
+            location, caught_location, f.get("species"), 1 if f.get("caught") == "yes" else 0,
             int(f.get("fish_count") or 1), size, weight, f.get("notes") or None,
             cond.get("tide_height_ft"), cond.get("tide_stage"), cond.get("water_level_ft"),
             cond.get("pressure_mb"), cond.get("pressure_trend"),

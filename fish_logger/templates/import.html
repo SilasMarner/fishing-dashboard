@@ -15,7 +15,7 @@
 {% if not import_enabled %}
 <div class="alert alert-warning">
   <i class="bi bi-exclamation-triangle"></i>
-  Handwritten-log import is disabled — set <code>ANTHROPIC_API_KEY</code> on the server to enable it.
+  Handwritten-log import is disabled — set <code>GROQ_API_KEY</code> (free, for the default OCR path) or <code>ANTHROPIC_API_KEY</code> (Claude vision) on the server to enable it.
 </div>
 {% endif %}
 
@@ -45,9 +45,10 @@
         {% endfor %}
       </select>
       <div class="form-text">
-        Tesseract is free and runs on the server (best on neat printing). Claude vision is
-        far better for cursive but uses Anthropic credits. OCR text is structured into entries
-        by the free Groq model.
+        <strong>OCR.space</strong> (default) is free and reads handwriting well — best for most
+        log pages and tag forms. Tesseract is free and on-device but weaker on cursive. Claude
+        vision is the most accurate for messy handwriting but uses Anthropic credits. OCR text is
+        structured into entries by the free Groq model.
       </div>
     </div>
 
@@ -81,7 +82,7 @@
     <div id="thumbs" class="d-flex flex-wrap gap-2 mb-3"></div>
 
     <button id="extractBtn" class="btn btn-primary" disabled>
-      <i class="bi bi-magic"></i> Analyze with Claude
+      <i class="bi bi-magic"></i> Read &amp; extract entries
     </button>
     <span id="extractStatus" class="ms-2 text-muted small"></span>
   </div>
@@ -89,7 +90,7 @@
 
 <div id="loadingSpinner" class="text-center py-5 d-none">
   <div class="spinner-border text-primary" role="status"></div>
-  <p class="mt-3 text-muted">Reading your handwriting with Claude…</p>
+  <p class="mt-3 text-muted">Reading your handwriting…</p>
 </div>
 
 <!-- Review + edit proposed entries -->
@@ -109,7 +110,7 @@
         <thead>
           <tr>
             <th style="width:2.5rem"></th>
-            <th>Date</th><th>Time</th><th>Species</th>
+            <th>Date</th><th>Time</th><th>Spot</th><th>Species</th>
             <th>Caught</th><th>#</th><th>Size&nbsp;in</th><th>Wt&nbsp;lbs</th>
             <th>Notes / page conditions</th><th>Conf.</th>
           </tr>
@@ -216,6 +217,7 @@ function entryRow(e) {
     <td><input type="checkbox" class="form-check-input rowsel" checked></td>
     <td><input type="date"   class="form-control form-control-sm f-date"  value="${e.catch_date || ''}" style="min-width:9rem"></td>
     <td><input type="time"   class="form-control form-control-sm f-time"  value="${e.catch_time || ''}" style="min-width:7rem"></td>
+    <td><input type="text"   class="form-control form-control-sm f-spot"  value="${(e.caught_location || '').replace(/"/g, '&quot;')}" placeholder="spot" style="min-width:9rem"></td>
     <td><select class="form-select form-select-sm f-species" style="min-width:12rem">${speciesOptions(e.species)}</select></td>
     <td><select class="form-select form-select-sm f-caught">
           <option value="yes"${e.caught ? ' selected' : ''}>Caught</option>
@@ -278,6 +280,7 @@ document.getElementById('commitBtn').addEventListener('click', async () => {
   const entries = rows.filter(r => r.querySelector('.rowsel').checked).map(r => ({
     catch_date: r.querySelector('.f-date').value,
     catch_time: r.querySelector('.f-time').value || null,
+    caught_location: r.querySelector('.f-spot').value || null,
     species:    r.querySelector('.f-species').value,
     caught:     r.querySelector('.f-caught').value === 'yes',
     fish_count: parseInt(r.querySelector('.f-count').value || '1', 10),

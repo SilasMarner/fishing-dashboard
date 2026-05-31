@@ -12,24 +12,29 @@
 </ul>
 
 <div class="card">
-  <div class="card-header"><i class="bi bi-clock-history"></i> Recent Catches — {{ locations[selected] }} (last 100)</div>
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-clock-history"></i> Recent Catches — {{ locations[selected] }} (last 100)</span>
+    <input id="spotFilter" type="search" class="form-control form-control-sm"
+           placeholder="Filter by spot / species / notes…" style="max-width:18rem">
+  </div>
   <div class="card-body p-0">
     {% if rows %}
     <div class="table-responsive">
-      <table class="table table-dark table-hover table-sm mb-0">
+      <table class="table table-dark table-hover table-sm mb-0" id="catchTable">
         <thead>
           <tr>
-            <th>Date / Time</th>
-            <th>Species</th>
-            <th>Result</th>
-            <th>Ct</th>
-            <th>Size</th>
-            <th>Wt</th>
-            <th>Pressure</th>
-            <th>Trend</th>
-            <th>Tide</th>
-            <th>Solunar</th>
-            <th>Score</th>
+            <th class="sortable" data-type="num">Date / Time</th>
+            <th class="sortable" data-type="text">Spot</th>
+            <th class="sortable" data-type="text">Species</th>
+            <th class="sortable" data-type="text">Result</th>
+            <th class="sortable" data-type="num">Ct</th>
+            <th class="sortable" data-type="num">Size</th>
+            <th class="sortable" data-type="num">Wt</th>
+            <th class="sortable" data-type="num">Pressure</th>
+            <th class="sortable" data-type="num">Trend</th>
+            <th class="sortable" data-type="num">Tide</th>
+            <th class="sortable" data-type="text">Solunar</th>
+            <th class="sortable" data-type="num">Score</th>
             <th>Notes</th>
           </tr>
         </thead>
@@ -37,32 +42,33 @@
           {% for r in rows %}
           {% set dt = r['logged_at']|int %}
           <tr>
-            <td class="text-nowrap text-muted small">{{ dt | datetimeformat }}</td>
+            <td class="text-nowrap text-muted small" data-sort="{{ dt }}">{{ dt | datetimeformat }}</td>
+            <td>{{ r['caught_location'] or '—' }}</td>
             <td>{{ r['species'] }}</td>
-            <td>
+            <td data-sort="{{ r['caught'] }}">
               {% if r['caught'] %}
                 <span class="badge badge-caught">Caught</span>
               {% else %}
                 <span class="badge badge-skunked">Skunked</span>
               {% endif %}
             </td>
-            <td>{{ r['fish_count'] or '—' }}</td>
-            <td>{% if r['size_in'] %}{{ r['size_in'] }}"{% else %}—{% endif %}</td>
-            <td>{% if r['weight_lbs'] %}{{ r['weight_lbs'] }} lb{% else %}—{% endif %}</td>
-            <td>{% if r['pressure_mb'] %}{{ "%.0f"|format(r['pressure_mb']) }} mb{% else %}—{% endif %}</td>
-            <td>
+            <td data-sort="{{ r['fish_count'] or 0 }}">{{ r['fish_count'] or '—' }}</td>
+            <td data-sort="{{ r['size_in'] or '' }}">{% if r['size_in'] %}{{ r['size_in'] }}"{% else %}—{% endif %}</td>
+            <td data-sort="{{ r['weight_lbs'] or '' }}">{% if r['weight_lbs'] %}{{ r['weight_lbs'] }} lb{% else %}—{% endif %}</td>
+            <td data-sort="{{ r['pressure_mb'] or '' }}">{% if r['pressure_mb'] %}{{ "%.0f"|format(r['pressure_mb']) }} mb{% else %}—{% endif %}</td>
+            <td data-sort="{{ r['pressure_trend'] if r['pressure_trend'] is not none else '' }}">
               {% if r['pressure_trend'] == 1 or r['pressure_trend'] == 1.0 %}<span class="text-success">↑</span>
               {% elif r['pressure_trend'] == -1 or r['pressure_trend'] == -1.0 %}<span class="text-danger">↓</span>
               {% elif r['pressure_trend'] is not none %}→
               {% else %}—{% endif %}
             </td>
-            <td>{% if r['tide_height_ft'] %}{{ "%.1f"|format(r['tide_height_ft']) }} ft{% else %}—{% endif %}</td>
+            <td data-sort="{{ r['tide_height_ft'] or '' }}">{% if r['tide_height_ft'] %}{{ "%.1f"|format(r['tide_height_ft']) }} ft{% else %}—{% endif %}</td>
             <td>
               {% if r['solunar_period'] == 'major' %}<span class="text-warning">Major</span>
               {% elif r['solunar_period'] == 'minor' %}<span class="text-info">Minor</span>
               {% else %}<span class="text-muted">—</span>{% endif %}
             </td>
-            <td>{% if r['fishing_score'] %}{{ "%.1f"|format(r['fishing_score']) }}{% else %}—{% endif %}</td>
+            <td data-sort="{{ r['fishing_score'] or '' }}">{% if r['fishing_score'] %}{{ "%.1f"|format(r['fishing_score']) }}{% else %}—{% endif %}</td>
             <td class="text-muted small">{{ r['notes'] or '' }}</td>
           </tr>
           {% endfor %}
@@ -74,4 +80,57 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Click-to-sort + free-text filter for the catches table ───────────────────
+(function () {
+  const table = document.getElementById('catchTable');
+  if (!table) return;
+  const tbody = table.tBodies[0];
+
+  function cellKey(td, type) {
+    const raw = td.hasAttribute('data-sort') ? td.getAttribute('data-sort')
+                                             : td.textContent.trim();
+    if (type === 'num') {
+      const n = parseFloat(raw);
+      return isNaN(n) ? -Infinity : n;       // blanks sort to the bottom on desc
+    }
+    return raw.toLowerCase();
+  }
+
+  table.querySelectorAll('th.sortable').forEach((th, idx) => {
+    th.style.cursor = 'pointer';
+    th.title = 'Click to sort';
+    th.addEventListener('click', () => {
+      const type = th.dataset.type || 'text';
+      const asc  = th.dataset.dir !== 'asc';        // toggle
+      table.querySelectorAll('th').forEach(h => { h.dataset.dir = ''; h.querySelector('.sort-caret')?.remove(); });
+      th.dataset.dir = asc ? 'asc' : 'desc';
+      const caret = document.createElement('span');
+      caret.className = 'sort-caret text-info';
+      caret.textContent = asc ? ' ▲' : ' ▼';
+      th.appendChild(caret);
+
+      const rows = [...tbody.rows];
+      rows.sort((a, b) => {
+        const ka = cellKey(a.cells[idx], type), kb = cellKey(b.cells[idx], type);
+        if (ka < kb) return asc ? -1 : 1;
+        if (ka > kb) return asc ? 1 : -1;
+        return 0;
+      });
+      rows.forEach(r => tbody.appendChild(r));
+    });
+  });
+
+  const filter = document.getElementById('spotFilter');
+  if (filter) filter.addEventListener('input', () => {
+    const q = filter.value.toLowerCase().trim();
+    [...tbody.rows].forEach(r => {
+      r.style.display = !q || r.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+})();
+</script>
 {% endblock %}
