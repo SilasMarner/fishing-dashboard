@@ -337,6 +337,9 @@ Useful flags (`--help` for all): `--ocr {tesseract,ocr_space,anthropic}` (defaul
 | `GET` | `/api/conditions/<location>` | Current Prometheus conditions snapshot |
 | `GET` | `/api/stations/search?q=<text>` | Fuzzy-search NOAA tide stations (cached 24 h) |
 | `GET` | `/api/tides/station?id=<noaa_id>&date=YYYY-MM-DD` | NOAA tide predictions proxy for any station |
+| `GET` | `/api/maps/<station_id>` | Station coords + nearest NGOFS2 salinity-forecast frames (Wind/Salinity buttons) |
+| `GET` | `/api/weather?lat=<lat>&lng=<lng>&date=YYYY-MM-DD` | NWS weather for arbitrary coordinates (Grafana station-search panel) |
+| `GET` | `/healthz` | Liveness probe — returns `ok` |
 
 ---
 
@@ -380,6 +383,11 @@ The dashboard uses two Grafana plugins:
 | `GROQ_API_KEY` | Yes (for AI) | — | Groq API key — free at [console.groq.com](https://console.groq.com) |
 | `XAI_API_KEY` | No | — | xAI/Grok API key (alternative) — [console.x.ai](https://console.x.ai) |
 | `AI_PROVIDER` | No | `groq` | AI provider: `groq` or `xai` |
+| `ANTHROPIC_API_KEY` | No | — | Claude key — required only for the `anthropic` (Claude vision) OCR import method |
+| `IMPORT_MODEL` | No | `claude-opus-4-8` | Model used by the Claude-vision import path |
+| `IMPORT_MAX_IMAGES` | No | `20` | Max page images accepted per `/import` request |
+| `OCR_PROVIDER` | No | `ocr_space` | Default `/import` OCR method: `ocr_space`, `tesseract`, or `anthropic` |
+| `OCR_SPACE_API_KEY` | No | `helloworld` | OCR.space API key (the default is their free demo key) |
 | `GRAFANA_ADMIN_PASSWORD` | Yes | — | Grafana admin password (≥8 chars) |
 | `GRAFANA_ADMIN_USER` | No | `admin` | Grafana admin username |
 | `FISHING_DATA_DIR` | No | `./data` | Directory for fish_log.db |
@@ -436,3 +444,22 @@ curl -s http://localhost:9879/api/conditions/freeport_tx  # verify app is reacha
 ```
 
 Make sure `GROQ_API_KEY` (or `XAI_API_KEY` if using `AI_PROVIDER=xai`) is set and valid. The scheduler waits 90 s after startup before the first run.
+
+---
+
+## QA / Smoke Testing
+
+`scripts/qa_smoke.py` is a dependency-light end-to-end health check covering the
+whole stack: the exporter (`:9877` metrics + `:9878` query API), the Prometheus
+scrape target, every fish-logger page and `/api/*` endpoint, the live NOAA/NWS
+data paths (tides, salinity frames, weather), and that the live Grafana dashboard
+JSON stays in sync with the repo backup. It exits non-zero if anything fails.
+
+```bash
+# Against the default host (10.0.0.13); override with --host / --grafana
+python3 scripts/qa_smoke.py
+python3 scripts/qa_smoke.py --host http://localhost:9879 --json
+```
+
+This is also wired up as the **`fishing-qa`** Claude Code skill, which runs the
+smoke test, triages any failures, and reports back — see `.claude/skills/fishing-qa/`.

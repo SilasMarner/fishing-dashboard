@@ -332,9 +332,6 @@ def get_conditions(location: str) -> dict:
     # Solunar: check all period labels for major/minor
     now = time.time()
     solunar = "none"
-    for label, metric in [("major", "fishing_solunar_major_start_unix"),
-                           ("major", "fishing_solunar_major_end_unix")]:
-        pass  # evaluated below
     major_starts = prom_labeled("fishing_solunar_major_start_unix", "period")
     major_ends   = prom_labeled("fishing_solunar_major_end_unix",   "period")
     minor_starts = prom_labeled("fishing_solunar_minor_start_unix", "period")
