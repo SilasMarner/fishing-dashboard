@@ -86,6 +86,19 @@ The Station Tide Lookup panel sits at the top of the dashboard. Type any city, s
 
 The `/tides` page at `http://<host>:9879/tides` provides the same functionality as a standalone web UI: quick-access buttons for all tracked stations plus a fuzzy-search box for any NOAA station. Bookmarkable URLs (`/tides?id=8771450&name=Galveston%2C+TX`) preserve the selected station on reload.
 
+### Wind & Salinity Maps
+
+Once a station is selected, **Wind** and **Salinity** buttons appear — in both the Grafana *Station Tide Lookup* panel and on the `/tides` page. They open the maps in a new tab, so they add no clutter to the dashboard.
+
+![Wind & Salinity buttons on the Tides page](docs/screenshots/tides_wind_salinity_buttons.png)
+
+| Wind map (Windy) | Salinity forecast loop (NOAA NGOFS2) |
+|---|---|
+| ![Wind map](docs/screenshots/wind_map_windy.png) | ![Salinity map](docs/screenshots/salinity_map_loop.png) |
+
+- **Wind** opens an interactive [Windy](https://windy.com) map centered on the station — wind, gusts, and weather overlays with a forecast timeline.
+- **Salinity** opens an animated **NOAA NGOFS2** surface-salinity forecast loop (play/pause + scrub, ~48 h ahead) for the Gulf bay nearest the station. Stations outside the Gulf get a coverage notice. Served via `GET /api/maps/<station_id>` (resolves coords, proxies the NGOFS2 frame list) and the standalone `/map/salinity` page.
+
 ---
 
 ## Architecture
