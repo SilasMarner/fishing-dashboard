@@ -922,7 +922,7 @@
       "targets": [],
       "title": "",
       "transparent": true,
-      "type": "gapit-htmlgraphics"
+      "type": "gapit-htmlgraphics-panel"
     },
     {
       "collapsed": false,
@@ -1131,6 +1131,6 @@
   "timezone": "browser",
   "title": "\ud83c\udfa3 Fishing Tides & Solunar",
   "uid": "fishing-tides-solunar-v1",
-  "version": 57,
+  "version": 58,
   "weekStart": ""
 }
