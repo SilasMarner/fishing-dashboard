@@ -3,45 +3,161 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Wind Map — {{ name }}</title>
+<title>Wind & Marine — {{ name }}</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;background:#0d1117;overflow:hidden;font-family:system-ui,sans-serif;color:#e6edf3}
-.bar{display:flex;align-items:center;gap:6px;padding:0 10px;background:#161b22;border-bottom:1px solid #30363d;height:40px;flex-shrink:0;overflow-x:auto}
-.bar-btn{background:#21262d;border:1px solid #30363d;color:#8b949e;padding:3px 11px;border-radius:5px;cursor:pointer;font-size:12px;white-space:nowrap;transition:all .15s}
-.bar-btn:hover{border-color:#58a6ff;color:#e6edf3}
-.bar-btn.active{background:#1f6feb;border-color:#1f6feb;color:#fff}
-.bar-title{font-size:12px;color:#8b949e;margin-left:auto;white-space:nowrap}
-#windy-frame{width:100%;height:calc(100% - 40px);border:0;display:block}
+html,body{height:100%;background:#0d1117;color:#e6edf3;font-family:system-ui,sans-serif;overflow:hidden;display:flex;flex-direction:column}
+#map{flex:1;min-height:0}
+.bottom{background:#161b22;border-top:1px solid #30363d;flex-shrink:0}
+.stats-bar{display:flex;align-items:center;gap:0;border-bottom:1px solid #21262d;overflow-x:auto}
+.stat{display:flex;flex-direction:column;align-items:center;padding:6px 10px;border-right:1px solid #21262d;flex-shrink:0}
+.stat-val{font-size:15px;font-weight:700;line-height:1;color:#e6edf3}
+.stat-lbl{font-size:10px;color:#8b949e;margin-top:2px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.chart-wrap{padding:4px 8px;height:52px;position:relative;overflow:hidden}
+canvas#windChart{width:100%!important;height:44px!important}
+.chart-labels{display:flex;justify-content:space-between;padding:0 2px;font-size:9px;color:#484f58}
+.header{display:flex;align-items:center;justify-content:space-between;padding:4px 10px;background:#0d1117;border-bottom:1px solid #30363d;font-size:12px;flex-shrink:0}
+.header-title{color:#58a6ff;font-weight:600}
+.header-now{color:#8b949e;font-size:11px}
+.badge{font-size:10px;background:#21262d;border:1px solid #30363d;padding:1px 7px;border-radius:4px;color:#79c0ff}
+/* Wind arrow marker */
+.wind-arrow{width:36px;height:36px;display:flex;align-items:center;justify-content:center}
+.leaflet-control-attribution{font-size:9px!important;opacity:.4}
 </style>
 </head>
 <body>
 
-<div class="bar">
-  <span style="font-size:13px;color:#58a6ff;font-weight:600;white-space:nowrap">🌬️ Wind &amp; Marine</span>
-  <span style="color:#30363d;font-size:16px">|</span>
-  <button class="bar-btn active" onclick="setOverlay('wind')">💨 Wind</button>
-  <button class="bar-btn" onclick="setOverlay('rain')">🌧️ Rain</button>
-  <button class="bar-btn" onclick="setOverlay('waves')">🌊 Waves</button>
-  <button class="bar-btn" onclick="setOverlay('temp')">🌡️ Temp</button>
-  <button class="bar-btn" onclick="setOverlay('pressure')">⏲️ Pressure</button>
-  <span class="bar-title">{{ name }} · Windy.com</span>
+<div class="header">
+  <span class="header-title">🌬️ Wind &amp; Marine — {{ name }}</span>
+  <span class="header-now" id="header-now">Loading…</span>
+  <span class="badge">Open-Meteo</span>
 </div>
 
-<iframe id="windy-frame"
-  src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=in&metricTemp=°F&metricWind=kt&zoom=7&overlay=wind&product=ecmwf&level=surface&lat={{ lat }}&lng={{ lon }}&detailLat={{ lat }}&detailLng={{ lon }}"
-  allowfullscreen></iframe>
+<div id="map"></div>
 
+<div class="bottom">
+  <div class="stats-bar" id="stats-bar">
+    <div class="stat"><span class="stat-val" id="s-wind">—</span><span class="stat-lbl">💨 Wind</span></div>
+    <div class="stat"><span class="stat-val" id="s-gust">—</span><span class="stat-lbl">⚡ Gusts</span></div>
+    <div class="stat"><span class="stat-val" id="s-dir">—</span><span class="stat-lbl">🧭 Dir</span></div>
+    <div class="stat"><span class="stat-val" id="s-wave">—</span><span class="stat-lbl">🌊 Waves</span></div>
+    <div class="stat"><span class="stat-val" id="s-period">—</span><span class="stat-lbl">↩️ Period</span></div>
+    <div class="stat"><span class="stat-val" id="s-pres">—</span><span class="stat-lbl">⏲️ Pres.</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="windChart"></canvas>
+  </div>
+  <div class="chart-labels" id="chart-labels"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
-const LAT = {{ lat }}, LON = {{ lon }};
-const BASE = 'https://embed.windy.com/embed.html';
-const PARAMS = `type=map&location=coordinates&metricRain=in&metricTemp=°F&metricWind=kt&zoom=7&product=ecmwf&level=surface&lat=${LAT}&lng=${LON}&detailLat=${LAT}&detailLng=${LON}`;
+const LAT = {{ lat }}, LON = {{ lon }}, NAME = {{ name|tojson }};
 
-function setOverlay(overlay) {
-  document.getElementById('windy-frame').src = `${BASE}?${PARAMS}&overlay=${overlay}`;
-  document.querySelectorAll('.bar-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
+// ── Map ────────────────────────────────────────────────────────────────────────
+const map = L.map('map', {center: [LAT, LON], zoom: 7, zoomControl: true, attributionControl: true});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  maxZoom: 19, subdomains: 'abcd', attribution: '© CARTO · Open-Meteo'
+}).addTo(map);
+
+// Arrow marker
+let arrowMarker = null;
+function setArrow(deg, speed) {
+  if (arrowMarker) map.removeLayer(arrowMarker);
+  const color = speed < 10 ? '#3fb950' : speed < 20 ? '#ffa657' : '#f85149';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+    <g transform="rotate(${deg},20,20)">
+      <polygon points="20,4 27,28 20,23 13,28" fill="${color}" opacity="0.9"/>
+      <circle cx="20" cy="31" r="4" fill="${color}" opacity="0.7"/>
+    </g>
+  </svg>`;
+  arrowMarker = L.marker([LAT, LON], {
+    icon: L.divIcon({html: svg, className: '', iconSize: [40, 40], iconAnchor: [20, 20]})
+  }).addTo(map).bindTooltip(`${NAME}: ${Math.round(speed)} mph from ${degToCard(deg)}`, {direction: 'top'});
 }
+
+function degToCard(deg) {
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg / 22.5) % 16];
+}
+
+// ── Chart.js wind forecast ─────────────────────────────────────────────────────
+let windChart = null;
+function renderChart(hours, speeds, gusts) {
+  const ctx = document.getElementById('windChart');
+  if (windChart) windChart.destroy();
+  Chart.defaults.color = '#484f58';
+  windChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: hours,
+      datasets: [
+        {label:'Wind',data:speeds,borderColor:'#58a6ff',backgroundColor:'rgba(88,166,255,.12)',borderWidth:1.5,pointRadius:0,fill:true,tension:.3},
+        {label:'Gusts',data:gusts,borderColor:'#ffa657',backgroundColor:'transparent',borderWidth:1,pointRadius:0,borderDash:[3,2],tension:.3},
+      ]
+    },
+    options: {
+      animation: false,
+      responsive: false,
+      maintainAspectRatio: false,
+      plugins: {legend:{display:false}, tooltip:{enabled:false}},
+      scales: {
+        x: {display:false},
+        y: {display:false, beginAtZero:true, grid:{color:'#21262d'}},
+      }
+    }
+  });
+}
+
+// ── Fetch Open-Meteo ───────────────────────────────────────────────────────────
+async function load() {
+  try {
+    const [wx, marine] = await Promise.allSettled([
+      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure&hourly=wind_speed_10m,wind_gusts_10m&forecast_days=2&wind_speed_unit=mph&timezone=auto`).then(r=>r.json()),
+      fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${LAT}&longitude=${LON}&current=wave_height,wave_period,wave_direction&wave_unit=imperial`).then(r=>r.json()),
+    ]);
+
+    const now = new Date();
+
+    if (wx.status === 'fulfilled' && !wx.value.error) {
+      const c = wx.value.current;
+      const spd = c.wind_speed_10m, gust = c.wind_gusts_10m, dir = c.wind_direction_10m;
+      const pres = c.surface_pressure;
+
+      document.getElementById('s-wind').textContent   = Math.round(spd) + ' mph';
+      document.getElementById('s-gust').textContent   = Math.round(gust) + ' mph';
+      document.getElementById('s-dir').textContent    = degToCard(dir);
+      document.getElementById('s-pres').textContent   = Math.round(pres) + ' mb';
+      document.getElementById('header-now').textContent = `${Math.round(spd)} mph ${degToCard(dir)} · updated ${now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+
+      setArrow(dir, spd);
+
+      // Chart: next 24h of hourly data
+      const hrly = wx.value.hourly;
+      const n = 24, slice = (arr) => arr.slice(0, n);
+      const labels = slice(hrly.time).map(t => {
+        const d = new Date(t); return d.toLocaleTimeString([],{hour:'numeric',hour12:true});
+      });
+      renderChart(labels, slice(hrly.wind_speed_10m), slice(hrly.wind_gusts_10m));
+      // Label every 6th hour
+      const labelEls = document.getElementById('chart-labels');
+      labelEls.innerHTML = labels.filter((_,i) => i % 6 === 0).map(l => `<span>${l}</span>`).join('');
+    }
+
+    if (marine.status === 'fulfilled' && !marine.value.error) {
+      const m = marine.value.current;
+      document.getElementById('s-wave').textContent   = m.wave_height ? m.wave_height.toFixed(1) + ' ft' : '—';
+      document.getElementById('s-period').textContent = m.wave_period ? m.wave_period.toFixed(0) + ' s'  : '—';
+    }
+  } catch(e) {
+    document.getElementById('header-now').textContent = 'Data unavailable';
+  }
+}
+
+load();
+setInterval(load, 5 * 60 * 1000); // refresh every 5 min
 </script>
 </body>
 </html>

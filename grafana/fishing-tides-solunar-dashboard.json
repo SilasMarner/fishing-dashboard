@@ -23,21 +23,21 @@
   "links": [],
   "panels": [
     {
-      "id": 100,
-      "type": "row",
-      "title": "\ud83c\udf0a Tides & Solunar \u2014 ${location}",
-      "gridPos": {
-        "x": 0,
-        "y": 0,
-        "w": 24,
-        "h": 1
-      },
       "collapsed": false,
-      "panels": [],
       "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 100,
       "options": {
         "path": ""
-      }
+      },
+      "panels": [],
+      "title": "\ud83c\udf0a Tides & Solunar \u2014 ${location}",
+      "type": "row"
     },
     {
       "datasource": {
@@ -68,10 +68,10 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 0,
-        "y": 1,
+        "h": 16,
         "w": 24,
-        "h": 16
+        "x": 0,
+        "y": 1
       },
       "id": 401,
       "options": {
@@ -134,21 +134,21 @@
       "type": "gapit-htmlgraphics-panel"
     },
     {
-      "id": 110,
-      "type": "row",
-      "title": "\ud83d\udcca Live Metrics \u2014 ${location}",
-      "gridPos": {
-        "x": 0,
-        "y": 17,
-        "w": 24,
-        "h": 1
-      },
       "collapsed": false,
-      "panels": [],
       "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "id": 110,
       "options": {
         "path": ""
-      }
+      },
+      "panels": [],
+      "title": "\ud83d\udcca Live Metrics \u2014 ${location}",
+      "type": "row"
     },
     {
       "datasource": "fff4bv1enp79cf",
@@ -186,10 +186,10 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 0,
-        "y": 18,
+        "h": 5,
         "w": 4,
-        "h": 5
+        "x": 0,
+        "y": 18
       },
       "id": 211,
       "options": {
@@ -242,10 +242,10 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 4,
-        "y": 18,
+        "h": 5,
         "w": 4,
-        "h": 5
+        "x": 4,
+        "y": 18
       },
       "id": 212,
       "options": {
@@ -302,10 +302,10 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 8,
-        "y": 18,
+        "h": 5,
         "w": 4,
-        "h": 5
+        "x": 8,
+        "y": 18
       },
       "id": 213,
       "options": {
@@ -373,10 +373,10 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 12,
-        "y": 18,
+        "h": 5,
         "w": 4,
-        "h": 5
+        "x": 12,
+        "y": 18
       },
       "id": 214,
       "options": {
@@ -444,10 +444,10 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 16,
-        "y": 18,
+        "h": 5,
         "w": 4,
-        "h": 5
+        "x": 16,
+        "y": 18
       },
       "id": 215,
       "options": {
@@ -541,10 +541,10 @@
         ]
       },
       "gridPos": {
-        "x": 20,
-        "y": 18,
+        "h": 5,
         "w": 4,
-        "h": 5
+        "x": 20,
+        "y": 18
       },
       "id": 216,
       "options": {
@@ -609,10 +609,10 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 0,
-        "y": 23,
+        "h": 4,
         "w": 8,
-        "h": 4
+        "x": 0,
+        "y": 23
       },
       "id": 217,
       "options": {
@@ -685,10 +685,10 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 8,
-        "y": 23,
+        "h": 4,
         "w": 8,
-        "h": 4
+        "x": 8,
+        "y": 23
       },
       "id": 218,
       "options": {
@@ -761,10 +761,10 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 16,
-        "y": 23,
+        "h": 4,
         "w": 8,
-        "h": 4
+        "x": 16,
+        "y": 23
       },
       "id": 219,
       "options": {
@@ -815,131 +815,131 @@
       "type": "stat"
     },
     {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
       "id": 120,
-      "type": "row",
+      "options": {
+        "path": ""
+      },
+      "panels": [],
       "title": "\ud83d\uddfa\ufe0f Weather & Ocean Maps",
-      "gridPos": {
-        "x": 0,
-        "y": 27,
-        "w": 24,
-        "h": 1
-      },
-      "collapsed": false,
-      "panels": [],
-      "datasource": null,
-      "options": {
-        "path": ""
-      }
+      "type": "row"
     },
     {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 20,
+        "w": 8,
+        "x": 0,
+        "y": 28
+      },
       "id": 301,
-      "type": "gapit-htmlgraphics-panel",
+      "options": {
+        "SVGBaseFix": false,
+        "add100Percentage": true,
+        "centerAlignContent": false,
+        "css": "",
+        "dynamicHtmlGraphics": {
+          "dynamicData": {},
+          "dynamicProps": []
+        },
+        "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe id=\"mf\" style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
+        "onInit": "",
+        "onRender": "\nvar loc = (typeof htmlGraphicsData !== 'undefined' && htmlGraphicsData.replaceVariables)\n  ? htmlGraphicsData.replaceVariables('$location')\n  : (document.location.search.match(/location=([^&]+)/) || [])[1] || 'freeport_tx';\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = document.getElementById('mf');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/map/radar?location=' + loc;\n  if (frame.src !== newSrc) frame.src = newSrc;\n}\n"
+      },
+      "targets": [],
       "title": "\u26c5 Rain Radar",
-      "gridPos": {
-        "x": 0,
-        "y": 28,
-        "w": 8,
-        "h": 20
-      },
-      "options": {
-        "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe src=\"http://10.0.0.13:9879/map/radar?location=$location\" style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
-        "css": "",
-        "onRender": "",
-        "onInit": "",
-        "SVGBaseFix": false,
-        "add100Percentage": true,
-        "centerAlignContent": false,
-        "dynamicHtmlGraphics": {
-          "dynamicData": {},
-          "dynamicProps": []
-        }
-      },
-      "datasource": null,
-      "targets": [],
       "transparent": true,
+      "type": "gapit-htmlgraphics-panel"
+    },
+    {
+      "datasource": null,
       "fieldConfig": {
         "defaults": {},
         "overrides": []
-      }
-    },
-    {
-      "id": 302,
-      "type": "gapit-htmlgraphics-panel",
-      "title": "\ud83c\udf2c\ufe0f Wind & Marine",
+      },
       "gridPos": {
+        "h": 20,
+        "w": 8,
         "x": 8,
-        "y": 28,
-        "w": 8,
-        "h": 20
+        "y": 28
       },
+      "id": 302,
       "options": {
-        "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe src=\"http://10.0.0.13:9879/map/wind?location=$location\" style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
-        "css": "",
-        "onRender": "",
-        "onInit": "",
         "SVGBaseFix": false,
         "add100Percentage": true,
         "centerAlignContent": false,
+        "css": "",
         "dynamicHtmlGraphics": {
           "dynamicData": {},
           "dynamicProps": []
-        }
+        },
+        "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe id=\"mf\" style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
+        "onInit": "",
+        "onRender": "\nvar loc = (typeof htmlGraphicsData !== 'undefined' && htmlGraphicsData.replaceVariables)\n  ? htmlGraphicsData.replaceVariables('$location')\n  : (document.location.search.match(/location=([^&]+)/) || [])[1] || 'freeport_tx';\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = document.getElementById('mf');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/map/wind?location=' + loc;\n  if (frame.src !== newSrc) frame.src = newSrc;\n}\n"
       },
-      "datasource": null,
       "targets": [],
+      "title": "\ud83c\udf2c\ufe0f Wind & Marine",
       "transparent": true,
+      "type": "gapit-htmlgraphics-panel"
+    },
+    {
+      "datasource": null,
       "fieldConfig": {
         "defaults": {},
         "overrides": []
-      }
-    },
-    {
-      "id": 303,
-      "type": "gapit-htmlgraphics-panel",
-      "title": "\ud83e\uddc2 Salinity Forecast",
+      },
       "gridPos": {
+        "h": 20,
+        "w": 8,
         "x": 16,
-        "y": 28,
-        "w": 8,
-        "h": 20
+        "y": 28
       },
+      "id": 303,
       "options": {
-        "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe src=\"http://10.0.0.13:9879/map/salinity?location=$location\" style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
-        "css": "",
-        "onRender": "",
-        "onInit": "",
         "SVGBaseFix": false,
         "add100Percentage": true,
         "centerAlignContent": false,
+        "css": "",
         "dynamicHtmlGraphics": {
           "dynamicData": {},
           "dynamicProps": []
-        }
+        },
+        "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe id=\"mf\" style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
+        "onInit": "",
+        "onRender": "\nvar loc = (typeof htmlGraphicsData !== 'undefined' && htmlGraphicsData.replaceVariables)\n  ? htmlGraphicsData.replaceVariables('$location')\n  : (document.location.search.match(/location=([^&]+)/) || [])[1] || 'freeport_tx';\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = document.getElementById('mf');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/map/salinity?location=' + loc;\n  if (frame.src !== newSrc) frame.src = newSrc;\n}\n"
       },
-      "datasource": null,
       "targets": [],
+      "title": "\ud83e\uddc2 Salinity Forecast",
       "transparent": true,
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
+      "type": "gapit-htmlgraphics-panel"
     },
     {
-      "id": 130,
-      "type": "row",
-      "title": "\ud83d\udd0d Station Lookup \u2014 Any NOAA Station",
-      "gridPos": {
-        "x": 0,
-        "y": 48,
-        "w": 24,
-        "h": 1
-      },
       "collapsed": false,
-      "panels": [],
       "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 48
+      },
+      "id": 130,
       "options": {
         "path": ""
-      }
+      },
+      "panels": [],
+      "title": "\ud83d\udd0d Station Lookup \u2014 Any NOAA Station",
+      "type": "row"
     },
     {
       "datasource": {
@@ -947,10 +947,10 @@
         "uid": "-- Mixed --"
       },
       "gridPos": {
-        "x": 0,
-        "y": 49,
+        "h": 12,
         "w": 24,
-        "h": 12
+        "x": 0,
+        "y": 49
       },
       "id": 801,
       "options": {
@@ -987,69 +987,69 @@
       "type": "gapit-htmlgraphics-panel"
     },
     {
-      "id": 140,
-      "type": "row",
-      "title": "\ud83d\udcc8 Catch Analytics \u2014 ${location}",
-      "gridPos": {
-        "x": 0,
-        "y": 61,
-        "w": 24,
-        "h": 1
-      },
       "collapsed": false,
-      "panels": [],
       "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 61
+      },
+      "id": 140,
       "options": {
         "path": ""
-      }
+      },
+      "panels": [],
+      "title": "\ud83d\udcc8 Catch Analytics \u2014 ${location}",
+      "type": "row"
     },
     {
-      "id": 510,
-      "type": "gapit-htmlgraphics-panel",
-      "title": "Stats",
-      "gridPos": {
-        "x": 0,
-        "y": 62,
-        "w": 24,
-        "h": 24
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
       },
+      "gridPos": {
+        "h": 24,
+        "w": 24,
+        "x": 0,
+        "y": 62
+      },
+      "id": 510,
       "options": {
-        "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe src=\"http://10.0.0.13:9879/stats?location=$location\" style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
-        "css": "",
-        "onRender": "",
-        "onInit": "",
         "SVGBaseFix": false,
         "add100Percentage": true,
         "centerAlignContent": false,
+        "css": "",
         "dynamicHtmlGraphics": {
           "dynamicData": {},
           "dynamicProps": []
-        }
+        },
+        "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe id=\"mf\" style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
+        "onInit": "",
+        "onRender": "\nvar loc = (typeof htmlGraphicsData !== 'undefined' && htmlGraphicsData.replaceVariables)\n  ? htmlGraphicsData.replaceVariables('$location')\n  : (document.location.search.match(/location=([^&]+)/) || [])[1] || 'freeport_tx';\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = document.getElementById('mf');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/stats?location=' + loc;\n  if (frame.src !== newSrc) frame.src = newSrc;\n}\n"
       },
-      "datasource": null,
       "targets": [],
+      "title": "Stats",
       "transparent": true,
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
+      "type": "gapit-htmlgraphics-panel"
     },
     {
-      "id": 150,
-      "type": "row",
-      "title": "\ud83c\udfa3 Fish Log \u2014 ${location}",
-      "gridPos": {
-        "x": 0,
-        "y": 86,
-        "w": 24,
-        "h": 1
-      },
       "collapsed": false,
-      "panels": [],
       "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 86
+      },
+      "id": 150,
       "options": {
         "path": ""
-      }
+      },
+      "panels": [],
+      "title": "\ud83c\udfa3 Fish Log \u2014 ${location}",
+      "type": "row"
     },
     {
       "datasource": null,
@@ -1058,10 +1058,10 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 0,
-        "y": 87,
+        "h": 14,
         "w": 24,
-        "h": 14
+        "x": 0,
+        "y": 87
       },
       "id": 501,
       "options": {
@@ -1071,11 +1071,12 @@
         "codeData": "{}",
         "css": "",
         "dynamicHtmlGraphics": false,
-        "html": "<style>\n* { margin:0; padding:0; }\niframe { width:100%; height:100%; border:none; display:block; }\n</style>\n<iframe src=\"http://10.0.0.13:9879/embed?location=$location\"></iframe>",
+        "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe id=\"mf\" style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
         "js": "",
         "onInitOnResize": false,
         "paneluids": [],
-        "rootCSS": ""
+        "rootCSS": "",
+        "onRender": "\nvar loc = (typeof htmlGraphicsData !== 'undefined' && htmlGraphicsData.replaceVariables)\n  ? htmlGraphicsData.replaceVariables('$location')\n  : (document.location.search.match(/location=([^&]+)/) || [])[1] || 'freeport_tx';\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = document.getElementById('mf');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/embed?location=' + loc;\n  if (frame.src !== newSrc) frame.src = newSrc;\n}\n"
       },
       "targets": [],
       "title": "\ud83d\udc1f Log a Catch",
@@ -1097,10 +1098,10 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 0,
-        "y": 101,
+        "h": 10,
         "w": 24,
-        "h": 10
+        "x": 0,
+        "y": 101
       },
       "id": 502,
       "options": {
@@ -1124,21 +1125,21 @@
       "type": "table"
     },
     {
-      "id": 160,
-      "type": "row",
-      "title": "\ud83e\udd16 AI Fishing Analysis \u2014 ${location}",
-      "gridPos": {
-        "x": 0,
-        "y": 111,
-        "w": 24,
-        "h": 1
-      },
       "collapsed": false,
-      "panels": [],
       "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 111
+      },
+      "id": 160,
       "options": {
         "path": ""
-      }
+      },
+      "panels": [],
+      "title": "\ud83e\udd16 AI Fishing Analysis \u2014 ${location}",
+      "type": "row"
     },
     {
       "datasource": null,
@@ -1147,10 +1148,10 @@
         "overrides": []
       },
       "gridPos": {
-        "x": 0,
-        "y": 112,
+        "h": 18,
         "w": 24,
-        "h": 18
+        "x": 0,
+        "y": 112
       },
       "id": 504,
       "options": {
@@ -1160,11 +1161,12 @@
         "codeData": "{}",
         "css": "",
         "dynamicHtmlGraphics": false,
-        "html": "<style>\n* { margin:0; padding:0; box-sizing:border-box; }\niframe { width:100%; height:100%; border:none; display:block; }\n</style>\n<iframe src=\"http://10.0.0.13:9879/analysis?location=$location\"></iframe>",
+        "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe id=\"mf\" style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
         "js": "",
         "onInitOnResize": false,
         "paneluids": [],
-        "rootCSS": ""
+        "rootCSS": "",
+        "onRender": "\nvar loc = (typeof htmlGraphicsData !== 'undefined' && htmlGraphicsData.replaceVariables)\n  ? htmlGraphicsData.replaceVariables('$location')\n  : (document.location.search.match(/location=([^&]+)/) || [])[1] || 'freeport_tx';\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = document.getElementById('mf');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/analysis?location=' + loc;\n  if (frame.src !== newSrc) frame.src = newSrc;\n}\n"
       },
       "targets": [],
       "title": "\ud83e\udd16 AI Fishing Analysis",
@@ -1186,49 +1188,49 @@
   "templating": {
     "list": [
       {
-        "name": "location",
-        "type": "custom",
-        "label": "\ud83d\udccd Station",
+        "current": {
+          "selected": true,
+          "text": "Freeport TX",
+          "value": "freeport_tx"
+        },
+        "datasource": null,
         "hide": 0,
         "includeAll": false,
+        "label": "\ud83d\udccd Station",
         "multi": false,
-        "current": {
-          "text": "Freeport TX",
-          "value": "freeport_tx",
-          "selected": true
-        },
+        "name": "location",
         "options": [
           {
+            "selected": true,
             "text": "Freeport TX",
-            "value": "freeport_tx",
-            "selected": true
+            "value": "freeport_tx"
           },
           {
+            "selected": false,
             "text": "N Padre Island TX",
-            "value": "padre_island_tx",
-            "selected": false
+            "value": "padre_island_tx"
           },
           {
+            "selected": false,
             "text": "Pensacola FL",
-            "value": "pensacola_fl",
-            "selected": false
+            "value": "pensacola_fl"
           },
           {
+            "selected": false,
             "text": "Sargent TX",
-            "value": "sargent_tx",
-            "selected": false
+            "value": "sargent_tx"
           },
           {
+            "selected": false,
             "text": "Matagorda TX",
-            "value": "matagorda_tx",
-            "selected": false
+            "value": "matagorda_tx"
           }
         ],
         "query": "Freeport TX : freeport_tx,N Padre Island TX : padre_island_tx,Pensacola FL : pensacola_fl,Sargent TX : sargent_tx,Matagorda TX : matagorda_tx",
         "refresh": 0,
-        "sort": 0,
         "skipUrlSync": false,
-        "datasource": null
+        "sort": 0,
+        "type": "custom"
       }
     ]
   },
@@ -1240,6 +1242,6 @@
   "timezone": "browser",
   "title": "\ud83c\udfa3 Fishing \u00b7 Tides \u00b7 Weather \u00b7 Maps",
   "uid": "fishing-tides-solunar-v1",
-  "version": 59,
+  "version": 60,
   "weekStart": ""
 }
