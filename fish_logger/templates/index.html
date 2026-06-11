@@ -74,9 +74,22 @@
             <div class="form-text">A specific spot — sortable in History and broken out in the analysis. Doesn't change your station tabs.</div>
           </div>
 
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">Bait <small class="text-muted">(opt.)</small></label>
+              <input type="text" name="bait" class="form-control"
+                     placeholder="e.g. gulp shrimp, live croaker">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Tackle / Technique <small class="text-muted">(opt.)</small></label>
+              <input type="text" name="tackle" class="form-control"
+                     placeholder="e.g. popping cork, jig head">
+            </div>
+          </div>
+
           <div class="mb-3">
             <label class="form-label">Notes</label>
-            <textarea name="notes" class="form-control" rows="2" placeholder="bait used, technique, etc."></textarea>
+            <textarea name="notes" class="form-control" rows="2" placeholder="additional notes…"></textarea>
           </div>
 
           <div class="mb-3">
@@ -140,10 +153,45 @@
           </div>
 
           {{ pill("bi-thermometer-half", "Temp", cond.temp_f, "°F") }}
-          {{ pill("bi-wind", "Wind", cond.wind_speed_mph, " mph") }}
+          <!-- Wind pill with compass direction -->
+          <div class="col-6 col-md-4">
+            <div class="condition-pill d-flex flex-column align-items-center p-2" id="windPill">
+              <i class="bi bi-wind mb-1" style="font-size:1.2rem"></i>
+              <small class="text-muted">Wind</small>
+              <strong>
+                {% if cond.wind_speed_mph is not none %}
+                  {{ "%.1f"|format(cond.wind_speed_mph|float) }} mph
+                  {% if cond.wind_deg is not none %}
+                    <span id="windArrow" style="display:inline-block;transition:transform .3s"
+                          title="{{ "%.0f"|format(cond.wind_deg|float) }}°">↓</span>
+                    <span id="windCardinal" class="text-info" style="font-size:.75rem">
+                      {{ ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"][(((cond.wind_deg|float + 11.25) % 360) // 22.5)|int] }}
+                    </span>
+                  {% endif %}
+                {% else %}—{% endif %}
+              </strong>
+            </div>
+          </div>
+
           {{ pill("bi-droplet", "Humidity", cond.humidity, "%") }}
           {{ pill("bi-cloud-rain", "Precip %", cond.precip_chance, "%") }}
-          {{ pill("bi-moon-stars", "Moon", cond.moon_phase_pct, "%") }}
+
+          <!-- Moon pill with phase icon -->
+          <div class="col-6 col-md-4">
+            <div class="condition-pill d-flex flex-column align-items-center p-2">
+              <span id="moonIcon" style="font-size:1.2rem;line-height:1;margin-bottom:.25rem">
+                {% set mp = cond.moon_phase_pct|float if cond.moon_phase_pct is not none else -1 %}
+                {% if mp < 0 %}🌑
+                {% elif mp < 12 %}🌑
+                {% elif mp < 37 %}🌒
+                {% elif mp < 63 %}🌓
+                {% elif mp < 88 %}🌔
+                {% else %}🌕{% endif %}
+              </span>
+              <small class="text-muted">Moon</small>
+              <strong>{% if cond.moon_phase_pct is not none %}{{ "%.0f"|format(cond.moon_phase_pct|float) }}%{% else %}—{% endif %}</strong>
+            </div>
+          </div>
 
           <div class="col-6 col-md-4">
             <div class="condition-pill d-flex flex-column align-items-center p-2">
@@ -172,6 +220,33 @@
 
 {% block scripts %}
 <script>
+// ── Wind arrow rotation helper ────────────────────────────────────────────────
+const CARDINALS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+function degToCardinal(deg) { return CARDINALS[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16]; }
+function setWindArrow(deg) {
+  const arrow = document.getElementById('windArrow');
+  const card  = document.getElementById('windCardinal');
+  if (arrow && deg != null) {
+    arrow.style.transform = `rotate(${deg}deg)`;
+    arrow.title = `${Math.round(deg)}°`;
+  }
+  if (card && deg != null) card.textContent = degToCardinal(deg);
+}
+// Apply on page load (wind_deg from server)
+{% if cond.wind_deg is not none %}
+setWindArrow({{ cond.wind_deg|float }});
+{% endif %}
+
+// ── Moon phase icon from % ────────────────────────────────────────────────────
+function moonIcon(pct) {
+  if (pct == null) return '🌑';
+  if (pct < 12)  return '🌑';
+  if (pct < 37)  return '🌒';
+  if (pct < 63)  return '🌓';
+  if (pct < 88)  return '🌔';
+  return '🌕';
+}
+
 document.querySelectorAll('input[name="caught"]').forEach(r => {
   r.addEventListener('change', () => {
     document.getElementById('caughtFields').style.opacity =
@@ -244,10 +319,24 @@ function updateCondPanel(cond) {
     if (label === 'Water Lvl') strong.textContent = fmt(cond.water_level_ft, ' ft');
     if (label === 'Pressure')  strong.textContent = fmt(cond.pressure_mb, ' mb');
     if (label === 'Temp')      strong.textContent = fmt(cond.temp_f, '°F');
-    if (label === 'Wind')      strong.textContent = fmt(cond.wind_speed_mph, ' mph');
+    if (label === 'Wind') {
+      let txt = fmt(cond.wind_speed_mph, ' mph');
+      if (cond.wind_deg != null) {
+        setWindArrow(cond.wind_deg);
+      }
+      strong.innerHTML = txt + (cond.wind_deg != null
+        ? ` <span id="windArrow" style="display:inline-block;transition:transform .3s">↓</span>`
+          + ` <span id="windCardinal" class="text-info" style="font-size:.75rem">`
+          + degToCardinal(cond.wind_deg) + `</span>` : '');
+    }
     if (label === 'Humidity')  strong.textContent = fmt(cond.humidity, '%');
     if (label === 'Precip %')  strong.textContent = fmt(cond.precip_chance, '%');
-    if (label === 'Moon')      strong.textContent = fmt(cond.moon_phase_pct, '%');
+    if (label === 'Moon') {
+      const pct = cond.moon_phase_pct;
+      const moonEl = document.getElementById('moonIcon');
+      if (moonEl && pct != null) moonEl.textContent = moonIcon(pct);
+      strong.textContent = pct != null ? Math.round(pct) + '%' : '—';
+    }
     if (label === 'Pressure Trend') {
       const t = cond.pressure_trend;
       if (t == 1)       strong.innerHTML = '<span class="text-success">Rising ↑</span>';

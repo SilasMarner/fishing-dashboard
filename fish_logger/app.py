@@ -10,7 +10,8 @@ import re
 import sqlite3
 import threading
 import time
-from datetime import datetime, date
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 
 # import anthropic          # ── Anthropic/Claude (commented out; see run_ai_analysis below)
@@ -272,6 +273,10 @@ def init_db():
         cols = {row[1] for row in conn.execute("PRAGMA table_info(fish_log)")}
         if "caught_location" not in cols:
             conn.execute("ALTER TABLE fish_log ADD COLUMN caught_location TEXT")
+        if "bait" not in cols:
+            conn.execute("ALTER TABLE fish_log ADD COLUMN bait TEXT")
+        if "tackle" not in cols:
+            conn.execute("ALTER TABLE fish_log ADD COLUMN tackle TEXT")
         conn.commit()
 
 # ── Prometheus helpers ─────────────────────────────────────────────────────────
@@ -498,6 +503,8 @@ def run_ai_analysis(location: str, window: str = "all", model: str | None = None
             "size_in":        r["size_in"],
             "weight_lbs":     r["weight_lbs"],
             "notes":          r["notes"],
+            "bait":           r["bait"],
+            "tackle":         r["tackle"],
             "pressure_mb":    r["pressure_mb"],
             "pressure_trend": TREND_LABEL.get(trend_raw, trend_raw),
             "temp_f":         r["temp_f"],
@@ -618,7 +625,9 @@ IMPORT_TOOL = {
                         "size_in":     {"type": ["number", "null"], "description": "Length in inches if recorded."},
                         "weight_lbs":  {"type": ["number", "null"], "description": "Weight in pounds if recorded."},
                         "page_conditions": {"type": ["string", "null"],
-                                            "description": "Any tide / weather / bait / water conditions written on the page for this entry, verbatim."},
+                                            "description": "Any tide / weather / water conditions written on the page for this entry, verbatim."},
+                        "bait":        {"type": ["string", "null"], "description": "Bait used (e.g. 'gulp shrimp', 'live croaker', 'topwater'). Null if not written."},
+                        "tackle":      {"type": ["string", "null"], "description": "Tackle or technique (e.g. 'popping cork', 'jig head', 'Carolina rig'). Null if not written."},
                         "notes":       {"type": ["string", "null"], "description": "Any other remarks written for this entry."},
                         "confidence":  {"type": "number",
                                         "description": "Your transcription confidence for this line, 0.0–1.0."}
@@ -799,15 +808,18 @@ def structure_text_to_entries(text: str, location: str, model: str | None = None
         '"species":"canonical name","species_raw":"as written or null","caught":true,'
         '"fish_count":1,"size_in":null,"weight_lbs":null,'
         '"caught_location":"specific spot/body of water as written, or null",'
-        '"page_conditions":"tide/weather/bait notes or null",'
+        '"bait":"bait used or null","tackle":"tackle/technique or null",'
+        '"page_conditions":"tide/weather/water notes or null",'
         '"notes":"other remarks or null","confidence":0.0}],'
         '"unreadable":"note anything illegible, or null"}\n\n'
         "Rules:\n"
         "- One entry per catch line, or one entry per filled-in tag form. A blank/skunk trip with no "
         "fish is a valid entry with caught=false.\n"
-        "- On a tag form, map Total Length to size_in (inches). Keep the other tag-form fields "
-        "(Tag #, Fork Length, Girth, Sex, Angler Name, Fish Condition, Tackle, GPS, Trip) "
+        "- On a tag form, map Total Length to size_in (inches). Put Tackle in the tackle field. "
+        "Keep other tag-form fields (Tag #, Fork Length, Girth, Sex, Angler Name, Fish Condition, GPS, Trip) "
         "in notes so nothing is lost.\n"
+        "- If bait or lure is written (e.g. 'gulp shrimp', 'live shrimp', 'topwater', 'spoon'), put it in bait.\n"
+        "- If tackle or technique is written (e.g. 'popping cork', 'jig head', 'Carolina rig', 'free-lined'), put it in tackle.\n"
         "- If a specific spot or body of water is written (e.g. 'West Galveston Bay', 'Cedar Lakes', "
         "a named reef/jetty/cut), put it in caught_location — not GPS coordinates, not the region.\n"
         f"- Map each species to the closest name in this list (use 'Other' if none fit):\n{json.dumps(species_list)}\n"
@@ -907,18 +919,22 @@ def insert_imported_entry(conn, location: str, entry: dict, cond_cache: dict | N
     conn.execute("""
         INSERT INTO fish_log (
             logged_at,
-            location, caught_location, species, caught, fish_count, size_in, weight_lbs, notes,
+            location, caught_location, species, caught, fish_count, size_in, weight_lbs,
+            bait, tackle, notes,
             tide_height_ft, tide_stage, water_level_ft,
             pressure_mb, pressure_trend, temp_f, wind_speed_mph, wind_deg,
             precip_chance, humidity, cloud_cover,
             solunar_period, moon_phase_pct, fishing_score
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, (
         int(catch_dt.timestamp()),
         location, caught_location, entry.get("species") or "Other",
         1 if entry.get("caught") else 0,
         int(entry.get("fish_count") or 1),
-        entry.get("size_in"), entry.get("weight_lbs"), notes,
+        entry.get("size_in"), entry.get("weight_lbs"),
+        (entry.get("bait") or "").strip() or None,
+        (entry.get("tackle") or "").strip() or None,
+        notes,
         cond.get("tide_height_ft"), cond.get("tide_stage"), cond.get("water_level_ft"),
         cond.get("pressure_mb"), cond.get("pressure_trend"),
         cond.get("temp_f"), cond.get("wind_speed_mph"), cond.get("wind_deg"),
@@ -971,21 +987,24 @@ def log_catch():
     weight = float(f["weight_lbs"]) if f.get("weight_lbs") else None
     count  = int(f.get("fish_count") or 1)
     caught_location = (f.get("caught_location") or "").strip() or None
+    bait   = (f.get("bait") or "").strip() or None
+    tackle = (f.get("tackle") or "").strip() or None
 
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("""
             INSERT INTO fish_log (
                 logged_at,
-                location, caught_location, species, caught, fish_count, size_in, weight_lbs, notes,
+                location, caught_location, species, caught, fish_count, size_in, weight_lbs,
+                bait, tackle, notes,
                 tide_height_ft, tide_stage, water_level_ft,
                 pressure_mb, pressure_trend, temp_f, wind_speed_mph, wind_deg,
                 precip_chance, humidity, cloud_cover,
                 solunar_period, moon_phase_pct, fishing_score
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             int(catch_dt.timestamp()),
             location, caught_location, f.get("species"), 1 if f.get("caught") == "yes" else 0,
-            count, size, weight, f.get("notes") or None,
+            count, size, weight, bait, tackle, f.get("notes") or None,
             cond.get("tide_height_ft"), cond.get("tide_stage"), cond.get("water_level_ft"),
             cond.get("pressure_mb"), cond.get("pressure_trend"),
             cond.get("temp_f"), cond.get("wind_speed_mph"), cond.get("wind_deg"),
@@ -1134,20 +1153,23 @@ def api_log():
     size     = float(f["size_in"])    if f.get("size_in")    else None
     weight   = float(f["weight_lbs"]) if f.get("weight_lbs") else None
     caught_location = (f.get("caught_location") or "").strip() or None
+    bait   = (f.get("bait") or "").strip() or None
+    tackle = (f.get("tackle") or "").strip() or None
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("""
             INSERT INTO fish_log (
                 logged_at,
-                location, caught_location, species, caught, fish_count, size_in, weight_lbs, notes,
+                location, caught_location, species, caught, fish_count, size_in, weight_lbs,
+                bait, tackle, notes,
                 tide_height_ft, tide_stage, water_level_ft,
                 pressure_mb, pressure_trend, temp_f, wind_speed_mph, wind_deg,
                 precip_chance, humidity, cloud_cover,
                 solunar_period, moon_phase_pct, fishing_score
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             int(catch_dt.timestamp()),
             location, caught_location, f.get("species"), 1 if f.get("caught") == "yes" else 0,
-            int(f.get("fish_count") or 1), size, weight, f.get("notes") or None,
+            int(f.get("fish_count") or 1), size, weight, bait, tackle, f.get("notes") or None,
             cond.get("tide_height_ft"), cond.get("tide_stage"), cond.get("water_level_ft"),
             cond.get("pressure_mb"), cond.get("pressure_trend"),
             cond.get("temp_f"), cond.get("wind_speed_mph"), cond.get("wind_deg"),
@@ -1701,6 +1723,251 @@ def export_fish_log_db():
     return send_file(tmp.name, as_attachment=True,
                      download_name=f"fish_log_{stamp}.db",
                      mimetype="application/x-sqlite3")
+
+
+# ── Stats / analytics ─────────────────────────────────────────────────────────
+@app.route("/stats")
+def stats():
+    location = request.args.get("location", "freeport_tx")
+    return render_template("stats.html", locations=LOCATION_NAMES, selected=location)
+
+@app.route("/api/stats/<location>")
+def api_stats(location):
+    if location not in LOCATION_NAMES:
+        return jsonify({"error": "unknown location"}), 404
+    tz = ZoneInfo("America/Chicago")
+    cutoff_12mo = int((datetime.now(tz=tz) - timedelta(days=365)).timestamp())
+
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+
+        # ── Species breakdown (caught only) ──────────────────────────────────
+        species_rows = conn.execute("""
+            SELECT species,
+                   COUNT(*) AS entries,
+                   SUM(fish_count) AS total_fish
+            FROM fish_log WHERE location=? AND caught=1
+            GROUP BY species ORDER BY total_fish DESC LIMIT 12
+        """, (location,)).fetchall()
+
+        # ── Monthly totals (last 12 months) ──────────────────────────────────
+        monthly_rows = conn.execute("""
+            SELECT strftime('%Y-%m', datetime(logged_at,'unixepoch','localtime')) AS month,
+                   SUM(CASE WHEN caught=1 THEN COALESCE(fish_count,1) ELSE 0 END) AS fish,
+                   COUNT(*) AS trips
+            FROM fish_log WHERE location=? AND logged_at >= ?
+            GROUP BY month ORDER BY month
+        """, (location, cutoff_12mo)).fetchall()
+
+        # ── Solunar success rate ──────────────────────────────────────────────
+        sol_rows = conn.execute("""
+            SELECT COALESCE(solunar_period,'none') AS period,
+                   COUNT(*) AS total,
+                   SUM(caught) AS caught
+            FROM fish_log WHERE location=?
+            GROUP BY period
+        """, (location,)).fetchall()
+
+        # ── Pressure range buckets vs success ────────────────────────────────
+        pres_rows = conn.execute("""
+            SELECT CASE
+                     WHEN pressure_mb < 1010 THEN 'Under 1010'
+                     WHEN pressure_mb < 1015 THEN '1010-1015'
+                     WHEN pressure_mb < 1020 THEN '1015-1020'
+                     ELSE 'Over 1020'
+                   END AS bucket,
+                   COUNT(*) AS total,
+                   SUM(caught) AS caught
+            FROM fish_log WHERE location=? AND pressure_mb IS NOT NULL
+            GROUP BY bucket
+        """, (location,)).fetchall()
+
+        # ── Personal bests per species ────────────────────────────────────────
+        bests_rows = conn.execute("""
+            SELECT species,
+                   MAX(size_in) AS max_size,
+                   MAX(weight_lbs) AS max_weight
+            FROM fish_log WHERE location=? AND caught=1
+              AND (size_in IS NOT NULL OR weight_lbs IS NOT NULL)
+            GROUP BY species
+            ORDER BY MAX(size_in) DESC
+        """, (location,)).fetchall()
+
+        # ── Top spots ─────────────────────────────────────────────────────────
+        spots_rows = conn.execute("""
+            SELECT caught_location AS spot,
+                   COUNT(*) AS total,
+                   SUM(caught) AS caught,
+                   SUM(CASE WHEN caught=1 THEN COALESCE(fish_count,1) ELSE 0 END) AS fish
+            FROM fish_log
+            WHERE location=? AND caught_location IS NOT NULL AND caught_location != ''
+            GROUP BY caught_location ORDER BY fish DESC LIMIT 10
+        """, (location,)).fetchall()
+
+        # ── Summary totals ────────────────────────────────────────────────────
+        totals = conn.execute("""
+            SELECT COUNT(*) AS entries,
+                   SUM(caught) AS caught_trips,
+                   SUM(CASE WHEN caught=1 THEN COALESCE(fish_count,1) ELSE 0 END) AS total_fish
+            FROM fish_log WHERE location=?
+        """, (location,)).fetchone()
+
+        # ── Top bait ─────────────────────────────────────────────────────────
+        bait_rows = conn.execute("""
+            SELECT bait, COUNT(*) AS entries,
+                   SUM(caught) AS caught
+            FROM fish_log WHERE location=? AND bait IS NOT NULL AND bait != ''
+            GROUP BY bait ORDER BY entries DESC LIMIT 8
+        """, (location,)).fetchall()
+
+    pressure_order = ["Under 1010", "1010-1015", "1015-1020", "Over 1020"]
+
+    return jsonify({
+        "totals": {
+            "entries": totals["entries"] or 0,
+            "caught_trips": totals["caught_trips"] or 0,
+            "total_fish": totals["total_fish"] or 0,
+        },
+        "species": [{"name": r["species"], "entries": r["entries"],
+                     "total_fish": r["total_fish"] or r["entries"]} for r in species_rows],
+        "monthly": [{"month": r["month"], "fish": r["fish"] or 0, "trips": r["trips"]} for r in monthly_rows],
+        "solunar": {r["period"]: {"total": r["total"], "caught": r["caught"] or 0} for r in sol_rows},
+        "pressure": {r["bucket"]: {"total": r["total"], "caught": r["caught"] or 0}
+                     for r in pres_rows},
+        "pressure_order": [p for p in pressure_order if any(r["bucket"] == p for r in pres_rows)],
+        "bests": [{"species": r["species"], "max_size": r["max_size"],
+                   "max_weight": r["max_weight"]} for r in bests_rows],
+        "spots": [{"spot": r["spot"], "total": r["total"],
+                   "caught": r["caught"] or 0, "fish": r["fish"] or 0} for r in spots_rows],
+        "top_bait": [{"bait": r["bait"], "entries": r["entries"],
+                      "caught": r["caught"] or 0} for r in bait_rows],
+    })
+
+
+@app.route("/api/records/<location>")
+def api_records(location):
+    if location not in LOCATION_NAMES:
+        return jsonify({"error": "unknown location"}), 404
+    tz = ZoneInfo("America/Chicago")
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        # Biggest by size
+        size_rows = conn.execute("""
+            SELECT f.species, f.size_in, f.weight_lbs, f.logged_at, f.notes, f.caught_location
+            FROM fish_log f
+            INNER JOIN (
+                SELECT species, MAX(size_in) mx FROM fish_log
+                WHERE location=? AND caught=1 AND size_in IS NOT NULL GROUP BY species
+            ) b ON f.species=b.species AND f.size_in=b.mx AND f.location=?
+            ORDER BY f.size_in DESC LIMIT 20
+        """, (location, location)).fetchall()
+        # Heaviest by weight (dedupe — skip if species already captured by size record)
+        wt_rows = conn.execute("""
+            SELECT f.species, f.size_in, f.weight_lbs, f.logged_at, f.notes, f.caught_location
+            FROM fish_log f
+            INNER JOIN (
+                SELECT species, MAX(weight_lbs) mx FROM fish_log
+                WHERE location=? AND caught=1 AND weight_lbs IS NOT NULL GROUP BY species
+            ) b ON f.species=b.species AND f.weight_lbs=b.mx AND f.location=?
+            ORDER BY f.weight_lbs DESC LIMIT 20
+        """, (location, location)).fetchall()
+
+    def fmt_row(r, key):
+        return {
+            "species": r["species"],
+            "value": r[key],
+            "size_in": r["size_in"],
+            "weight_lbs": r["weight_lbs"],
+            "date": datetime.fromtimestamp(r["logged_at"], tz=tz).strftime("%Y-%m-%d"),
+            "spot": r["caught_location"],
+        }
+
+    return jsonify({
+        "by_size":   [fmt_row(r, "size_in") for r in size_rows],
+        "by_weight": [fmt_row(r, "weight_lbs") for r in wt_rows],
+    })
+
+
+# ── Tide chart endpoints ───────────────────────────────────────────────────────
+@app.route("/api/tides/hourly")
+def api_tides_hourly():
+    """Hourly tide predictions for a full day — used to draw the tide curve chart."""
+    station_id = request.args.get("id", "").strip()
+    date_str   = request.args.get("date", datetime.now(tz=APP_TZ).strftime("%Y-%m-%d"))
+    if not station_id:
+        return jsonify({"error": "station id required"}), 400
+    try:
+        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"error": "invalid date"}), 400
+    noaa_date = date_obj.strftime("%Y%m%d")
+    try:
+        r = requests.get(
+            "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter",
+            params={
+                "product":     "predictions",
+                "station":     station_id,
+                "datum":       "MLLW",
+                "time_zone":   "lst_ldt",
+                "interval":    "h",
+                "units":       "english",
+                "application": "fishing_dashboard",
+                "format":      "json",
+                "begin_date":  noaa_date,
+                "end_date":    noaa_date,
+            },
+            timeout=10,
+        )
+        r.raise_for_status()
+        data = r.json()
+        if "error" in data:
+            return jsonify({"error": data["error"].get("message", "NOAA error")}), 400
+        return jsonify({"predictions": data.get("predictions", [])})
+    except Exception as exc:
+        log.warning("NOAA hourly fetch failed for %s: %s", station_id, exc)
+        return jsonify({"error": str(exc)}), 502
+
+
+@app.route("/api/tides/week")
+def api_tides_week():
+    """7-day hi/lo tide forecast for a station starting from a given date."""
+    station_id = request.args.get("id", "").strip()
+    start_str  = request.args.get("date", datetime.now(tz=APP_TZ).strftime("%Y-%m-%d"))
+    if not station_id:
+        return jsonify({"error": "station id required"}), 400
+    try:
+        start_obj = datetime.strptime(start_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"error": "invalid date"}), 400
+
+    dates = [start_obj + timedelta(days=i) for i in range(7)]
+
+    def fetch_day(d):
+        nd = d.strftime("%Y%m%d")
+        try:
+            r = requests.get(
+                "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter",
+                params={
+                    "product": "predictions", "station": station_id,
+                    "datum": "MLLW", "time_zone": "lst_ldt",
+                    "interval": "hilo", "units": "english",
+                    "application": "fishing_dashboard",
+                    "format": "json", "begin_date": nd, "end_date": nd,
+                },
+                timeout=12,
+            )
+            r.raise_for_status()
+            data = r.json()
+            if "error" in data:
+                return d.isoformat(), []
+            return d.isoformat(), data.get("predictions", [])
+        except Exception:
+            return d.isoformat(), []
+
+    with ThreadPoolExecutor(max_workers=7) as ex:
+        results = list(ex.map(fetch_day, dates))
+
+    return jsonify({"week": {d: preds for d, preds in results}})
 
 
 @app.route("/healthz")

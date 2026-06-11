@@ -14,7 +14,8 @@
         <div class="d-flex flex-column gap-2 mb-4">
           {% for key, name in locations.items() %}
           <button class="btn btn-sm btn-outline-secondary text-start quick-station"
-                  data-id="{{ station_ids[key] }}" data-name="{{ name }}">
+                  data-id="{{ station_ids[key] }}" data-name="{{ name }}"
+                  data-lockey="{{ key }}">
             <i class="bi bi-water me-1"></i>{{ name }}
             <span class="text-muted float-end" style="font-size:.7rem">ID {{ station_ids[key] }}</span>
           </button>
@@ -41,13 +42,21 @@
         <label class="form-label text-muted small mb-1">Date</label>
         <input type="date" id="tideDate" class="form-control form-control-sm" value="{{ today }}">
 
+        <div class="mt-3">
+          <button id="quickLogBtn" class="btn btn-sm btn-success w-100 d-none" disabled>
+            <i class="bi bi-plus-circle"></i> Log a Catch Here
+          </button>
+        </div>
+
       </div>
     </div>
   </div>
 
   <!-- Right: Tide predictions -->
   <div class="col-lg-8">
-    <div class="card" style="min-height:340px">
+
+    <!-- Tide chart + hilo table -->
+    <div class="card mb-4" style="min-height:340px">
       <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span><i class="bi bi-arrow-down-up"></i> Tide Predictions — <span id="stationLabel">select a station</span></span>
         <div class="d-flex align-items-center gap-2">
@@ -58,6 +67,12 @@
           <span class="badge bg-secondary d-none" id="stationIdBadge"></span>
         </div>
       </div>
+
+      <!-- Tide curve chart -->
+      <div id="chartWrapper" class="px-3 pt-3 d-none" style="height:200px;position:relative">
+        <canvas id="tideChart"></canvas>
+      </div>
+
       <div class="card-body" id="tideBody">
         <div class="text-muted text-center py-5">
           <i class="bi bi-geo-alt" style="font-size:2.5rem;opacity:.4"></i>
@@ -65,11 +80,22 @@
         </div>
       </div>
     </div>
-  </div>
 
+    <!-- 7-day week view -->
+    <div class="card d-none" id="weekCard">
+      <div class="card-header"><i class="bi bi-calendar-week"></i> 7-Day Tide Forecast</div>
+      <div class="card-body p-0" id="weekBody">
+        <div class="text-center py-3">
+          <div class="spinner-border spinner-border-sm text-info"></div>
+          <span class="text-muted ms-2 small">Loading week forecast…</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
-<!-- Wind map modal (Windy embed) -->
+<!-- Wind map modal -->
 <div class="modal fade" id="windModal" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-centered">
     <div class="modal-content" style="background:#161b22;border:1px solid #30363d;">
@@ -85,7 +111,7 @@
   </div>
 </div>
 
-<!-- Salinity map modal (NOAA NGOFS2 loop) -->
+<!-- Salinity map modal -->
 <div class="modal fade" id="salModal" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content" style="background:#161b22;border:1px solid #30363d;">
@@ -97,25 +123,113 @@
     </div>
   </div>
 </div>
+
+<!-- Quick-log modal -->
+<div class="modal fade" id="quickLogModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:#161b22;border:1px solid #30363d;">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle-fill text-success me-2"></i>Quick Log — <span id="qlStationLabel">Station</span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label text-muted small">Location</label>
+          <select id="qlLocation" class="form-select form-select-sm">
+            {% for key, name in locations.items() %}
+            <option value="{{ key }}">{{ name }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text text-muted">Conditions will be snapshotted at logging time.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label text-muted small">Species</label>
+          <select id="qlSpecies" class="form-select form-select-sm">
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label text-muted small">Result</label>
+          <div class="d-flex gap-3">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="qlCaught" id="qlYes" value="yes" checked>
+              <label class="form-check-label text-success" for="qlYes"><i class="bi bi-fish"></i> Caught</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="qlCaught" id="qlNo" value="no">
+              <label class="form-check-label text-danger" for="qlNo">Skunked</label>
+            </div>
+          </div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-4">
+            <label class="form-label text-muted small">Count</label>
+            <input type="number" id="qlCount" class="form-control form-control-sm" min="1" value="1">
+          </div>
+          <div class="col-4">
+            <label class="form-label text-muted small">Size (in)</label>
+            <input type="number" id="qlSize" class="form-control form-control-sm" step="0.5" placeholder="opt.">
+          </div>
+          <div class="col-4">
+            <label class="form-label text-muted small">Weight (lb)</label>
+            <input type="number" id="qlWeight" class="form-control form-control-sm" step="0.1" placeholder="opt.">
+          </div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label text-muted small">Bait</label>
+            <input type="text" id="qlBait" class="form-control form-control-sm" placeholder="opt.">
+          </div>
+          <div class="col-6">
+            <label class="form-label text-muted small">Tackle</label>
+            <input type="text" id="qlTackle" class="form-control form-control-sm" placeholder="opt.">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label text-muted small">Spot</label>
+          <input type="text" id="qlSpot" class="form-control form-control-sm"
+                 placeholder="specific spot (opt.)">
+        </div>
+        <div class="mb-3">
+          <label class="form-label text-muted small">Notes</label>
+          <input type="text" id="qlNotes" class="form-control form-control-sm" placeholder="opt.">
+        </div>
+        <div id="qlMsg" class="d-none"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success btn-sm" id="qlSubmit">
+          <i class="bi bi-save"></i> Log + Snapshot Conditions
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
+const SPECIES_MAP = {{ species | tojson }};
+const LOC_NAMES  = {{ locations | tojson }};
+
 let activeStationId   = null;
 let activeStationName = null;
+let activeLocKey      = null;
 let searchTimer       = null;
+let tideChartInst     = null;
 
-// ── Quick-access buttons ──────────────────────────────────────────────────────
+// ── Quick-station buttons ─────────────────────────────────────────────────────
 document.querySelectorAll('.quick-station').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.quick-station').forEach(b => b.classList.remove('btn-info','text-dark'));
     btn.classList.add('btn-info','text-dark');
     document.getElementById('stationSearch').value = '';
-    selectStation(btn.dataset.id, btn.dataset.name);
+    selectStation(btn.dataset.id, btn.dataset.name, btn.dataset.lockey || null);
   });
 });
 
-// ── Search input ──────────────────────────────────────────────────────────────
+// ── Search ────────────────────────────────────────────────────────────────────
 const searchEl   = document.getElementById('stationSearch');
 const dropdownEl = document.getElementById('searchDropdown');
 const statusEl   = document.getElementById('searchStatus');
@@ -128,11 +242,8 @@ searchEl.addEventListener('input', () => {
   searchTimer = setTimeout(() => doSearch(q), 300);
 });
 
-// Close dropdown on outside click
 document.addEventListener('click', e => {
-  if (!e.target.closest('#stationSearch') && !e.target.closest('#searchDropdown')) {
-    hideDropdown();
-  }
+  if (!e.target.closest('#stationSearch') && !e.target.closest('#searchDropdown')) hideDropdown();
 });
 
 async function doSearch(q) {
@@ -142,10 +253,7 @@ async function doSearch(q) {
     if (data.error) { statusEl.textContent = data.error; hideDropdown(); return; }
     statusEl.textContent = data.length ? `${data.length} result${data.length > 1 ? 's' : ''}` : 'No stations found';
     showDropdown(data);
-  } catch(e) {
-    statusEl.textContent = 'Search failed';
-    hideDropdown();
-  }
+  } catch(e) { statusEl.textContent = 'Search failed'; hideDropdown(); }
 }
 
 function showDropdown(stations) {
@@ -155,23 +263,20 @@ function showDropdown(stations) {
     dropdownEl.innerHTML = stations.map(s => {
       const label = s.name + (s.state ? ', ' + s.state : '');
       const coord = (s.lat && s.lng)
-        ? `${parseFloat(s.lat).toFixed(2)}°, ${parseFloat(s.lng).toFixed(2)}°`
-        : '';
+        ? `${parseFloat(s.lat).toFixed(2)}°, ${parseFloat(s.lng).toFixed(2)}°` : '';
       return `<div class="station-result px-3 py-2"
-                   style="cursor:pointer;border-bottom:1px solid #30363d;"
+                   style="cursor:pointer;border-bottom:1px solid #30363d"
                    data-id="${s.id}" data-name="${label}">
                 <div class="small text-white">${label}</div>
                 <div class="text-muted" style="font-size:.7rem">ID: ${s.id}${coord ? ' · ' + coord : ''}</div>
               </div>`;
     }).join('');
-
     dropdownEl.querySelectorAll('.station-result').forEach(el => {
       el.addEventListener('click', () => {
         searchEl.value = el.dataset.name;
-        hideDropdown();
-        statusEl.textContent = '';
+        hideDropdown(); statusEl.textContent = '';
         document.querySelectorAll('.quick-station').forEach(b => b.classList.remove('btn-info','text-dark'));
-        selectStation(el.dataset.id, el.dataset.name);
+        selectStation(el.dataset.id, el.dataset.name, null);
       });
       el.addEventListener('mouseenter', () => el.style.background = '#2d333b');
       el.addEventListener('mouseleave', () => el.style.background = '');
@@ -180,86 +285,182 @@ function showDropdown(stations) {
   dropdownEl.classList.remove('d-none');
 }
 
-function hideDropdown() {
-  dropdownEl.classList.add('d-none');
-}
+function hideDropdown() { dropdownEl.classList.add('d-none'); }
 
 // ── Date change ───────────────────────────────────────────────────────────────
 document.getElementById('tideDate').addEventListener('change', () => {
   if (activeStationId) fetchTides(activeStationId, activeStationName);
 });
 
-// ── Station selection + tide fetch ────────────────────────────────────────────
-function selectStation(id, name) {
+// ── Station selection ─────────────────────────────────────────────────────────
+function selectStation(id, name, locKey) {
   activeStationId   = id;
   activeStationName = name;
+  activeLocKey      = locKey;
   document.getElementById('stationLabel').textContent = name;
   const badge = document.getElementById('stationIdBadge');
   badge.textContent = 'ID ' + id;
   badge.classList.remove('d-none');
-  // update URL so it's bookmarkable without reloading
   history.replaceState(null, '', `/tides?id=${id}&name=${encodeURIComponent(name)}`);
+
+  // Show quick-log button
+  const qlBtn = document.getElementById('quickLogBtn');
+  qlBtn.classList.remove('d-none');
+  qlBtn.disabled = false;
+
   fetchTides(id, name);
   loadMaps(id);
+  loadWeekForecast(id);
 }
 
+// ── Tide predictions (hilo table + hourly chart) ──────────────────────────────
 async function fetchTides(stationId, stationName) {
-  const date   = document.getElementById('tideDate').value;
-  const body   = document.getElementById('tideBody');
-  body.innerHTML = `<div class="text-center py-5">
-    <div class="spinner-border text-info"></div>
-    <p class="text-muted mt-3">Fetching NOAA tide predictions…</p>
-  </div>`;
-
-  try {
-    const r    = await fetch(`/api/tides/station?id=${stationId}&date=${date}`);
-    const data = await r.json();
-    if (data.error) {
-      body.innerHTML = `<div class="alert alert-warning m-3">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i>${data.error}
-      </div>`;
-      return;
-    }
-    renderTides(data.predictions, date);
-  } catch(e) {
-    body.innerHTML = `<div class="alert alert-danger m-3">
-      <i class="bi bi-exclamation-triangle-fill me-2"></i>Failed to fetch tide data.
-    </div>`;
-  }
-}
-
-function renderTides(predictions, date) {
+  const date = document.getElementById('tideDate').value;
   const body = document.getElementById('tideBody');
+  body.innerHTML = `<div class="text-center py-4">
+    <div class="spinner-border text-info"></div>
+    <p class="text-muted mt-3 small">Fetching NOAA tide predictions…</p>
+  </div>`;
+  document.getElementById('chartWrapper').classList.add('d-none');
 
-  if (!predictions || !predictions.length) {
-    body.innerHTML = '<div class="text-muted text-center py-5">No tide predictions available for this date.</div>';
+  const [hiloRes, hourlyRes] = await Promise.allSettled([
+    fetch(`/api/tides/station?id=${stationId}&date=${date}`).then(r => r.json()),
+    fetch(`/api/tides/hourly?id=${stationId}&date=${date}`).then(r => r.json()),
+  ]);
+
+  const hilo   = hiloRes.status === 'fulfilled' ? hiloRes.value : {};
+  const hourly = hourlyRes.status === 'fulfilled' ? hourlyRes.value : {};
+
+  if (hilo.error) {
+    body.innerHTML = `<div class="alert alert-warning m-3">${hilo.error}</div>`;
     return;
   }
 
-  // Date label
-  const [y, mo, d] = date.split('-').map(Number);
-  const dateLabel = new Date(y, mo - 1, d).toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  renderTideChart(hourly.predictions || [], hilo.predictions || []);
+  renderTideTable(hilo.predictions || [], date);
+}
+
+function renderTideChart(hourlyPreds, hiloPreds) {
+  const wrapper = document.getElementById('chartWrapper');
+  if (!hourlyPreds.length) { wrapper.classList.add('d-none'); return; }
+
+  wrapper.classList.remove('d-none');
+
+  const labels = hourlyPreds.map(p => {
+    const [, hhmm] = p.t.split(' ');
+    const [hh, mm] = hhmm.split(':').map(Number);
+    const ampm = hh >= 12 ? 'pm' : 'am';
+    const h12  = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
+    return `${h12}${mm ? ':' + String(mm).padStart(2,'0') : ''}${ampm}`;
+  });
+  const values = hourlyPreds.map(p => parseFloat(p.v));
+
+  // Hi/lo scatter points
+  const scatterData = hiloPreds.map(p => {
+    const [, hhmm] = p.t.split(' ');
+    const [hh] = hhmm.split(':').map(Number);
+    return { x: hh, y: parseFloat(p.v), type: p.type };
   });
 
-  // Tidal range
+  if (tideChartInst) tideChartInst.destroy();
+
+  const ctx = document.getElementById('tideChart').getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 200);
+  grad.addColorStop(0, 'rgba(88,166,255,0.4)');
+  grad.addColorStop(1, 'rgba(88,166,255,0)');
+
+  tideChartInst = new Chart(ctx, {
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'line',
+          label: 'Tide Height (ft)',
+          data: values,
+          borderColor: '#58a6ff',
+          backgroundColor: grad,
+          borderWidth: 2,
+          tension: 0.45,
+          fill: true,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+        },
+        {
+          type: 'scatter',
+          label: 'High',
+          data: scatterData.filter(p => p.type === 'H').map(p => ({x: p.x, y: p.y})),
+          backgroundColor: '#58a6ff',
+          borderColor: '#fff',
+          borderWidth: 1.5,
+          pointRadius: 7,
+          pointStyle: 'triangle',
+        },
+        {
+          type: 'scatter',
+          label: 'Low',
+          data: scatterData.filter(p => p.type === 'L').map(p => ({x: p.x, y: p.y})),
+          backgroundColor: '#8b949e',
+          borderColor: '#fff',
+          borderWidth: 1.5,
+          pointRadius: 7,
+          pointStyle: 'rectRot',
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: {
+          grid: { color: '#21262d' },
+          ticks: { font: { size: 10 }, color: '#8b949e', maxRotation: 0, maxTicksLimit: 13 }
+        },
+        y: {
+          grid: { color: '#21262d' },
+          ticks: { font: { size: 10 }, color: '#8b949e', callback: v => v.toFixed(1) + ' ft' }
+        }
+      },
+      plugins: {
+        legend: { labels: { boxWidth: 10, font: { size: 10 }, color: '#8b949e' } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.dataset.type === 'scatter'
+              ? ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} ft`
+              : ` ${parseFloat(ctx.parsed.y).toFixed(2)} ft`
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderTideTable(predictions, date) {
+  const body = document.getElementById('tideBody');
+  if (!predictions.length) {
+    body.innerHTML = '<div class="text-muted text-center py-4">No tide predictions for this date.</div>';
+    return;
+  }
+
+  const [y, mo, d] = date.split('-').map(Number);
+  const dateLabel = new Date(y, mo - 1, d).toLocaleDateString('en-US',
+    {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+
   const highs = predictions.filter(p => p.type === 'H').map(p => parseFloat(p.v));
   const lows  = predictions.filter(p => p.type === 'L').map(p => parseFloat(p.v));
   const range = (highs.length && lows.length)
-    ? (Math.max(...highs) - Math.min(...lows)).toFixed(2)
-    : null;
+    ? (Math.max(...highs) - Math.min(...lows)).toFixed(2) : null;
 
   const rows = predictions.map(p => {
     const isHigh = p.type === 'H';
     const ht     = parseFloat(p.v).toFixed(2);
     const [, hhmm] = p.t.split(' ');
     const [hh, mm] = hhmm.split(':').map(Number);
-    const ampm  = hh >= 12 ? 'PM' : 'AM';
-    const h12   = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
-    const timeStr = `${h12}:${String(mm).padStart(2, '0')} ${ampm}`;
+    const ampm = hh >= 12 ? 'PM' : 'AM';
+    const h12  = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
+    const timeStr = `${h12}:${String(mm).padStart(2,'0')} ${ampm}`;
     const htColor = isHigh ? 'text-info' : parseFloat(p.v) < 0 ? 'text-danger' : 'text-secondary';
     const icon    = isHigh ? 'bi-arrow-up-circle-fill text-info' : 'bi-arrow-down-circle-fill text-secondary';
-
     return `<tr>
       <td class="text-center ps-3"><i class="bi ${icon}" style="font-size:1.1rem"></i></td>
       <td><strong>${timeStr}</strong></td>
@@ -269,20 +470,15 @@ function renderTides(predictions, date) {
   }).join('');
 
   body.innerHTML = `
-    <div class="px-3 pt-3 pb-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div class="px-3 pt-2 pb-1 d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span class="text-muted small"><i class="bi bi-calendar3 me-1"></i>${dateLabel}</span>
-      ${range
-        ? `<span class="badge bg-secondary">
-             <i class="bi bi-arrow-down-up me-1"></i>Tidal range: ${range} ft
-           </span>`
-        : ''}
+      ${range ? `<span class="badge bg-secondary"><i class="bi bi-arrow-down-up me-1"></i>Range: ${range} ft</span>` : ''}
     </div>
     <table class="table table-dark table-hover mb-0">
       <thead>
         <tr class="text-muted" style="font-size:.8rem">
           <th class="ps-3" style="width:2.5rem"></th>
-          <th>Time</th>
-          <th>Event</th>
+          <th>Time</th><th>Event</th>
           <th class="text-end pe-3">Height (MLLW)</th>
         </tr>
       </thead>
@@ -293,7 +489,80 @@ function renderTides(predictions, date) {
     </div>`;
 }
 
-// ── Wind + Salinity map buttons (open in modals — no page real estate) ────────
+// ── 7-day week forecast ───────────────────────────────────────────────────────
+async function loadWeekForecast(stationId) {
+  const weekCard = document.getElementById('weekCard');
+  const weekBody = document.getElementById('weekBody');
+  weekCard.classList.remove('d-none');
+  weekBody.innerHTML = `<div class="text-center py-3">
+    <div class="spinner-border spinner-border-sm text-info"></div>
+    <span class="text-muted ms-2 small">Loading 7-day forecast…</span>
+  </div>`;
+
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const r     = await fetch(`/api/tides/week?id=${stationId}&date=${today}`);
+    const data  = await r.json();
+    renderWeek(data.week);
+  } catch(e) {
+    weekBody.innerHTML = `<div class="text-muted text-center py-3 small">Could not load week forecast.</div>`;
+  }
+}
+
+function renderWeek(week) {
+  const weekBody = document.getElementById('weekBody');
+  const dates = Object.keys(week).sort();
+  if (!dates.length) {
+    weekBody.innerHTML = '<div class="text-muted text-center py-3 small">No forecast data.</div>';
+    return;
+  }
+
+  const rows = dates.map(d => {
+    const preds = week[d] || [];
+    const [y, mo, day] = d.split('-').map(Number);
+    const dateObj  = new Date(y, mo - 1, day);
+    const dayLabel = dateObj.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+    const isToday  = d === new Date().toISOString().slice(0, 10);
+
+    const tideCells = preds.map(p => {
+      const isH  = p.type === 'H';
+      const ht   = parseFloat(p.v).toFixed(1);
+      const [, hhmm] = p.t.split(' ');
+      const [hh, mm] = hhmm.split(':').map(Number);
+      const ampm = hh >= 12 ? 'PM' : 'AM';
+      const h12  = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
+      return `<span class="me-3 text-nowrap">
+        <i class="bi ${isH ? 'bi-arrow-up text-info' : 'bi-arrow-down text-secondary'}" style="font-size:.75rem"></i>
+        <strong class="${isH ? 'text-info' : 'text-secondary'}" style="font-size:.8rem">${ht}'</strong>
+        <span class="text-muted" style="font-size:.72rem">${h12}:${String(mm).padStart(2,'0')}${ampm}</span>
+      </span>`;
+    }).join('');
+
+    return `<tr class="week-row" data-date="${d}" style="cursor:pointer${isToday ? ';background:#1c2128' : ''}">
+      <td class="ps-3 text-nowrap" style="width:8rem">
+        <span class="${isToday ? 'text-info fw-bold' : 'text-muted'}" style="font-size:.85rem">
+          ${isToday ? '⬤ ' : ''}${dayLabel}
+        </span>
+      </td>
+      <td class="py-2">${tideCells || '<span class="text-muted small">No data</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  weekBody.innerHTML = `<table class="table table-dark table-sm mb-0"><tbody>${rows}</tbody></table>
+    <div class="text-muted px-3 py-2" style="font-size:.7rem">Click a row to view that day's full tide chart</div>`;
+
+  document.querySelectorAll('.week-row').forEach(row => {
+    row.addEventListener('mouseenter', () => { row.style.background = '#2d333b'; });
+    row.addEventListener('mouseleave', () => { row.style.background = row.dataset.date === new Date().toISOString().slice(0,10) ? '#1c2128' : ''; });
+    row.addEventListener('click', () => {
+      document.getElementById('tideDate').value = row.dataset.date;
+      if (activeStationId) fetchTides(activeStationId, activeStationName);
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    });
+  });
+}
+
+// ── Wind + Salinity ───────────────────────────────────────────────────────────
 let activeLat = null, activeLon = null, salData = null;
 let salFrames = [], salIdx = 0, salTimer = null, salPlaying = true;
 const windModal = new bootstrap.Modal(document.getElementById('windModal'));
@@ -309,7 +578,7 @@ async function loadMaps(id) {
     if (d.error) return;
     activeLat = d.lat; activeLon = d.lon; salData = d.salinity;
     windBtn.disabled = false; salBtn.disabled = false;
-  } catch (e) { /* leave buttons disabled */ }
+  } catch (e) {}
 }
 
 windBtn.addEventListener('click', () => {
@@ -323,7 +592,7 @@ windBtn.addEventListener('click', () => {
   windModal.show();
 });
 document.getElementById('windModal').addEventListener('hidden.bs.modal', () => {
-  document.getElementById('windFrame').src = 'about:blank';   // stop streaming
+  document.getElementById('windFrame').src = 'about:blank';
 });
 
 salBtn.addEventListener('click', () => {
@@ -340,7 +609,7 @@ salBtn.addEventListener('click', () => {
   }
   salFrames = salData.frames || [];
   if (!salFrames.length) {
-    body.innerHTML = `<div class="py-5 text-muted">${salData.error || 'No salinity forecast available right now.'}</div>`;
+    body.innerHTML = `<div class="py-5 text-muted">${salData.error || 'No salinity forecast available.'}</div>`;
     salModal.show(); return;
   }
   salIdx = 0; salPlaying = true;
@@ -353,11 +622,11 @@ salBtn.addEventListener('click', () => {
       <span id="salTime" class="small text-info" style="min-width:120px;text-align:right;">${salFrames[0].label}</span>
     </div>
     <div class="text-muted" style="font-size:.7rem">NOAA NGOFS2 surface-salinity forecast (PSU)</div>`;
-  salFrames.forEach(f => { const im = new Image(); im.src = f.url; });   // preload
-  const img    = document.getElementById('salImg');
-  const slider = document.getElementById('salSlider');
-  const timeEl = document.getElementById('salTime');
-  const playBtn= document.getElementById('salPlay');
+  salFrames.forEach(f => { const im = new Image(); im.src = f.url; });
+  const img     = document.getElementById('salImg');
+  const slider  = document.getElementById('salSlider');
+  const timeEl  = document.getElementById('salTime');
+  const playBtn = document.getElementById('salPlay');
   const showFrame = i => { salIdx = i; img.src = salFrames[i].url; slider.value = i; timeEl.textContent = salFrames[i].label; };
   function step() {
     salTimer = setTimeout(() => {
@@ -382,17 +651,91 @@ document.getElementById('salModal').addEventListener('hidden.bs.modal', () => {
   salPlaying = false; clearTimeout(salTimer);
 });
 
-// ── Auto-load from URL params (bookmarkable links) ────────────────────────────
+// ── Quick-log modal ───────────────────────────────────────────────────────────
+const qlModal = new bootstrap.Modal(document.getElementById('quickLogModal'));
+
+function updateQlSpecies() {
+  const loc  = document.getElementById('qlLocation').value;
+  const sel  = document.getElementById('qlSpecies');
+  const list = SPECIES_MAP[loc] || [];
+  sel.innerHTML = list.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+document.getElementById('qlLocation').addEventListener('change', updateQlSpecies);
+updateQlSpecies();
+
+document.getElementById('quickLogBtn').addEventListener('click', () => {
+  document.getElementById('qlStationLabel').textContent = activeStationName || 'Station';
+  // Pre-select the matching location if this is a tracked station
+  if (activeLocKey) {
+    document.getElementById('qlLocation').value = activeLocKey;
+    updateQlSpecies();
+  }
+  document.getElementById('qlMsg').classList.add('d-none');
+  qlModal.show();
+});
+
+document.getElementById('qlSubmit').addEventListener('click', async () => {
+  const btn = document.getElementById('qlSubmit');
+  const msg = document.getElementById('qlMsg');
+  btn.disabled = true;
+
+  const fd = new FormData();
+  fd.append('location',   document.getElementById('qlLocation').value);
+  fd.append('species',    document.getElementById('qlSpecies').value);
+  fd.append('caught',     document.querySelector('input[name="qlCaught"]:checked').value);
+  fd.append('fish_count', document.getElementById('qlCount').value || '1');
+  const sz = document.getElementById('qlSize').value;
+  const wt = document.getElementById('qlWeight').value;
+  const bt = document.getElementById('qlBait').value;
+  const tk = document.getElementById('qlTackle').value;
+  const sp = document.getElementById('qlSpot').value;
+  const nt = document.getElementById('qlNotes').value;
+  if (sz) fd.append('size_in', sz);
+  if (wt) fd.append('weight_lbs', wt);
+  if (bt) fd.append('bait', bt);
+  if (tk) fd.append('tackle', tk);
+  if (sp) fd.append('caught_location', sp);
+  if (nt) fd.append('notes', nt);
+
+  try {
+    const r = await fetch('/api/log', {method: 'POST', body: fd});
+    const j = await r.json();
+    if (j.status === 'ok') {
+      msg.className = 'alert alert-success small py-2';
+      msg.textContent = '✅ Catch logged with conditions snapshot!';
+      msg.classList.remove('d-none');
+      // Reset fields
+      document.getElementById('qlCount').value  = '1';
+      document.getElementById('qlSize').value   = '';
+      document.getElementById('qlWeight').value = '';
+      document.getElementById('qlBait').value   = '';
+      document.getElementById('qlTackle').value = '';
+      document.getElementById('qlSpot').value   = '';
+      document.getElementById('qlNotes').value  = '';
+      setTimeout(() => qlModal.hide(), 1500);
+    } else throw new Error(j.message || 'Unknown error');
+  } catch(e) {
+    msg.className = 'alert alert-danger small py-2';
+    msg.textContent = '❌ ' + e.message;
+    msg.classList.remove('d-none');
+  }
+  btn.disabled = false;
+});
+
+// ── Auto-load from URL params ─────────────────────────────────────────────────
 (function() {
   const params = new URLSearchParams(window.location.search);
   const id   = params.get('id');
   const name = params.get('name');
   if (id) {
-    // highlight quick-station button if it matches
     document.querySelectorAll('.quick-station').forEach(btn => {
-      if (btn.dataset.id === id) btn.classList.add('btn-info','text-dark');
+      if (btn.dataset.id === id) {
+        btn.classList.add('btn-info','text-dark');
+        activeLocKey = btn.dataset.lockey || null;
+      }
     });
-    selectStation(id, name || 'Station ' + id);
+    selectStation(id, name || 'Station ' + id, activeLocKey);
   }
 })();
 </script>

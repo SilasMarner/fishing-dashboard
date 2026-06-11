@@ -79,9 +79,23 @@ input[type=checkbox]{accent-color:#1f6feb;width:14px;height:14px;cursor:pointer}
   <div><label class="lbl">Weight (lb)</label><input type="number" id="weight" step="0.1" placeholder="opt."></div>
 </div>
 
-<div class="note-row">
-  <label class="lbl">Notes (bait, technique, spot…)</label>
-  <input type="text" id="notes" placeholder="e.g. gulp shrimp under popping cork, jetty">
+<div class="grid" style="grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:10px">
+  <div>
+    <label class="lbl">Spot</label>
+    <input type="text" id="spot" placeholder="optional">
+  </div>
+  <div>
+    <label class="lbl">Bait</label>
+    <input type="text" id="bait" placeholder="optional">
+  </div>
+  <div>
+    <label class="lbl">Tackle</label>
+    <input type="text" id="tackle" placeholder="optional">
+  </div>
+  <div>
+    <label class="lbl">Notes</label>
+    <input type="text" id="notes" placeholder="optional">
+  </div>
 </div>
 
 <button class="sub" id="sub">🎣 Log Catch + Snapshot Conditions</button>
@@ -143,9 +157,15 @@ document.getElementById('sub').addEventListener('click', async () => {
   fd.append('fish_count', document.getElementById('count').value);
   const sz = document.getElementById('size').value;
   const wt = document.getElementById('weight').value;
+  const bt = document.getElementById('bait').value;
+  const tk = document.getElementById('tackle').value;
+  const sp = document.getElementById('spot').value;
   const nt = document.getElementById('notes').value;
   if (sz) fd.append('size_in', sz);
   if (wt) fd.append('weight_lbs', wt);
+  if (bt) fd.append('bait', bt);
+  if (tk) fd.append('tackle', tk);
+  if (sp) fd.append('caught_location', sp);
   if (nt) fd.append('notes', nt);
 
   try {
@@ -157,6 +177,9 @@ document.getElementById('sub').addEventListener('click', async () => {
       document.getElementById('count').value  = '1';
       document.getElementById('size').value   = '';
       document.getElementById('weight').value = '';
+      document.getElementById('bait').value   = '';
+      document.getElementById('tackle').value = '';
+      document.getElementById('spot').value   = '';
       document.getElementById('notes').value  = '';
       loadRecent();
     } else { throw new Error(j.message || 'error'); }

@@ -11,11 +11,48 @@
   {% endfor %}
 </ul>
 
+<!-- Personal bests accordion -->
+<div class="accordion mb-4" id="bestsAccordion">
+  <div class="accordion-item" style="background:#161b22;border:1px solid #30363d">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button"
+              data-bs-toggle="collapse" data-bs-target="#bestsCollapse"
+              style="background:#1c2128;color:#e6edf3;border:none">
+        <i class="bi bi-trophy-fill text-warning me-2"></i> Personal Bests — {{ locations[selected] }}
+        <span class="badge bg-secondary ms-2" style="font-size:.7rem">click to expand</span>
+      </button>
+    </h2>
+    <div id="bestsCollapse" class="accordion-collapse collapse">
+      <div class="accordion-body p-0">
+        <div id="bestsLoading" class="text-center py-3 text-muted small">
+          <div class="spinner-border spinner-border-sm text-info me-2"></div> Loading records…
+        </div>
+        <table class="table table-dark table-hover table-sm mb-0 d-none" id="bestsTable">
+          <thead>
+            <tr class="text-muted" style="font-size:.8rem">
+              <th class="ps-3">Species</th>
+              <th class="text-center">Biggest</th>
+              <th class="text-center">Date</th>
+              <th class="text-center">Heaviest</th>
+              <th class="text-end pe-3">Date</th>
+            </tr>
+          </thead>
+          <tbody id="bestsBody"></tbody>
+        </table>
+        <div id="bestsEmpty" class="text-center py-3 text-muted small d-none">
+          No size/weight records yet. Add measurements when logging catches.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Catches card -->
 <div class="card">
   <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
     <span><i class="bi bi-clock-history"></i> Recent Catches — {{ locations[selected] }} (last 100)</span>
     <div class="d-flex align-items-center gap-2 flex-wrap">
-      <div class="btn-group btn-group-sm" role="group" aria-label="Export database">
+      <div class="btn-group btn-group-sm" role="group">
         <a class="btn btn-outline-success" href="/api/export/fish_log.csv?location={{ selected }}"
            title="This location's catches as CSV"><i class="bi bi-download"></i> CSV ({{ locations[selected] }})</a>
         <a class="btn btn-outline-success" href="/api/export/fish_log.csv"
@@ -27,12 +64,29 @@
              placeholder="Filter by spot / species / notes…" style="max-width:18rem">
     </div>
   </div>
+
+  <!-- Bulk-delete action bar (hidden when nothing selected) -->
+  <div id="bulkBar" class="d-none px-3 py-2 d-flex align-items-center gap-3 border-bottom border-secondary flex-wrap"
+       style="background:#1c2128">
+    <span id="bulkCount" class="text-info fw-bold small">0 selected</span>
+    <button class="btn btn-sm btn-outline-danger" id="bulkDelBtn" disabled>
+      <i class="bi bi-trash3"></i> Delete Selected
+    </button>
+    <button class="btn btn-sm btn-outline-secondary" id="bulkClearBtn">
+      <i class="bi bi-x"></i> Clear selection
+    </button>
+  </div>
+
   <div class="card-body p-0">
     {% if rows %}
     <div class="table-responsive">
       <table class="table table-dark table-hover table-sm mb-0" id="catchTable">
         <thead>
           <tr>
+            <th style="width:2rem">
+              <input type="checkbox" id="selectAll" title="Select / deselect all"
+                     style="accent-color:#1f6feb;cursor:pointer">
+            </th>
             <th class="sortable" data-type="num">Date / Time</th>
             <th class="sortable" data-type="text">Spot</th>
             <th class="sortable" data-type="text">Species</th>
@@ -40,18 +94,25 @@
             <th class="sortable" data-type="num">Ct</th>
             <th class="sortable" data-type="num">Size</th>
             <th class="sortable" data-type="num">Wt</th>
+            <th class="sortable" data-type="text">Bait</th>
+            <th class="sortable" data-type="text">Tackle</th>
             <th class="sortable" data-type="num">Pressure</th>
             <th class="sortable" data-type="num">Trend</th>
             <th class="sortable" data-type="num">Tide</th>
             <th class="sortable" data-type="text">Solunar</th>
             <th class="sortable" data-type="num">Score</th>
             <th>Notes</th>
+            <th style="width:2.5rem"></th>
           </tr>
         </thead>
         <tbody>
           {% for r in rows %}
           {% set dt = r['logged_at']|int %}
-          <tr>
+          <tr data-id="{{ r['id'] }}">
+            <td class="text-center">
+              <input type="checkbox" class="row-chk" data-id="{{ r['id'] }}"
+                     style="accent-color:#1f6feb;cursor:pointer">
+            </td>
             <td class="text-nowrap text-muted small" data-sort="{{ dt }}">{{ dt | datetimeformat }}</td>
             <td>{{ r['caught_location'] or '—' }}</td>
             <td>{{ r['species'] }}</td>
@@ -65,6 +126,8 @@
             <td data-sort="{{ r['fish_count'] or 0 }}">{{ r['fish_count'] or '—' }}</td>
             <td data-sort="{{ r['size_in'] or '' }}">{% if r['size_in'] %}{{ r['size_in'] }}"{% else %}—{% endif %}</td>
             <td data-sort="{{ r['weight_lbs'] or '' }}">{% if r['weight_lbs'] %}{{ r['weight_lbs'] }} lb{% else %}—{% endif %}</td>
+            <td class="text-muted small">{{ r['bait'] or '—' }}</td>
+            <td class="text-muted small">{{ r['tackle'] or '—' }}</td>
             <td data-sort="{{ r['pressure_mb'] or '' }}">{% if r['pressure_mb'] %}{{ "%.0f"|format(r['pressure_mb']) }} mb{% else %}—{% endif %}</td>
             <td data-sort="{{ r['pressure_trend'] if r['pressure_trend'] is not none else '' }}">
               {% if r['pressure_trend'] == 1 or r['pressure_trend'] == 1.0 %}<span class="text-success">↑</span>
@@ -80,6 +143,13 @@
             </td>
             <td data-sort="{{ r['fishing_score'] or '' }}">{% if r['fishing_score'] %}{{ "%.1f"|format(r['fishing_score']) }}{% else %}—{% endif %}</td>
             <td class="text-muted small">{{ r['notes'] or '' }}</td>
+            <td class="text-center">
+              <button class="btn btn-sm btn-outline-danger p-0 px-1 delete-row-btn"
+                      data-id="{{ r['id'] }}" title="Delete this entry"
+                      style="font-size:.75rem;line-height:1.4">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </td>
           </tr>
           {% endfor %}
         </tbody>
@@ -94,38 +164,82 @@
 
 {% block scripts %}
 <script>
-// ── Click-to-sort + free-text filter for the catches table ───────────────────
 (function () {
-  const table = document.getElementById('catchTable');
+  const table    = document.getElementById('catchTable');
+  const LOCATION = '{{ selected }}';
+
+  // ── Personal bests (lazy-load when accordion opens) ───────────────────────
+  let bestsLoaded = false;
+  document.getElementById('bestsCollapse').addEventListener('show.bs.collapse', () => {
+    if (bestsLoaded) return;
+    bestsLoaded = true;
+    fetch(`/api/records/${LOCATION}`)
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('bestsLoading').classList.add('d-none');
+        const allSpecies = new Set([
+          ...data.by_size.map(r => r.species),
+          ...data.by_weight.map(r => r.species),
+        ]);
+        if (!allSpecies.size) {
+          document.getElementById('bestsEmpty').classList.remove('d-none');
+          return;
+        }
+        const bySize   = Object.fromEntries(data.by_size.map(r => [r.species, r]));
+        const byWeight = Object.fromEntries(data.by_weight.map(r => [r.species, r]));
+        const species  = [...allSpecies].sort((a, b) => {
+          const sA = bySize[a]?.size_in || 0;
+          const sB = bySize[b]?.size_in || 0;
+          return sB - sA;
+        });
+        document.getElementById('bestsBody').innerHTML = species.map(sp => {
+          const s = bySize[sp],   w = byWeight[sp];
+          return `<tr>
+            <td class="ps-3"><i class="bi bi-trophy text-warning me-1"></i>${sp}</td>
+            <td class="text-center">${s ? s.size_in + '"' : '—'}</td>
+            <td class="text-center text-muted small">${s ? s.date : ''}</td>
+            <td class="text-center">${w ? w.weight_lbs + ' lbs' : '—'}</td>
+            <td class="text-end pe-3 text-muted small">${w ? w.date : ''}</td>
+          </tr>`;
+        }).join('');
+        document.getElementById('bestsTable').classList.remove('d-none');
+      })
+      .catch(() => {
+        document.getElementById('bestsLoading').textContent = 'Failed to load records.';
+      });
+  });
+
   if (!table) return;
   const tbody = table.tBodies[0];
 
+  // ── Sort ──────────────────────────────────────────────────────────────────
   function cellKey(td, type) {
     const raw = td.hasAttribute('data-sort') ? td.getAttribute('data-sort')
                                              : td.textContent.trim();
     if (type === 'num') {
       const n = parseFloat(raw);
-      return isNaN(n) ? -Infinity : n;       // blanks sort to the bottom on desc
+      return isNaN(n) ? -Infinity : n;
     }
     return raw.toLowerCase();
   }
 
   table.querySelectorAll('th.sortable').forEach((th, idx) => {
+    const actualIdx = idx + 1;   // +1 for the checkbox column
     th.style.cursor = 'pointer';
     th.title = 'Click to sort';
     th.addEventListener('click', () => {
       const type = th.dataset.type || 'text';
-      const asc  = th.dataset.dir !== 'asc';        // toggle
+      const asc  = th.dataset.dir !== 'asc';
       table.querySelectorAll('th').forEach(h => { h.dataset.dir = ''; h.querySelector('.sort-caret')?.remove(); });
       th.dataset.dir = asc ? 'asc' : 'desc';
       const caret = document.createElement('span');
       caret.className = 'sort-caret text-info';
       caret.textContent = asc ? ' ▲' : ' ▼';
       th.appendChild(caret);
-
       const rows = [...tbody.rows];
       rows.sort((a, b) => {
-        const ka = cellKey(a.cells[idx], type), kb = cellKey(b.cells[idx], type);
+        const ka = cellKey(a.cells[actualIdx], type);
+        const kb = cellKey(b.cells[actualIdx], type);
         if (ka < kb) return asc ? -1 : 1;
         if (ka > kb) return asc ? 1 : -1;
         return 0;
@@ -134,12 +248,115 @@
     });
   });
 
+  // ── Free-text filter ──────────────────────────────────────────────────────
   const filter = document.getElementById('spotFilter');
   if (filter) filter.addEventListener('input', () => {
     const q = filter.value.toLowerCase().trim();
     [...tbody.rows].forEach(r => {
       r.style.display = !q || r.textContent.toLowerCase().includes(q) ? '' : 'none';
     });
+    syncSelectAll();
+  });
+
+  // ── Bulk-delete UI ────────────────────────────────────────────────────────
+  const bulkBar     = document.getElementById('bulkBar');
+  const bulkCount   = document.getElementById('bulkCount');
+  const bulkDelBtn  = document.getElementById('bulkDelBtn');
+  const bulkClearBtn= document.getElementById('bulkClearBtn');
+  const selectAll   = document.getElementById('selectAll');
+
+  function getCheckedIds() {
+    return [...tbody.querySelectorAll('.row-chk:checked')].map(c => parseInt(c.dataset.id));
+  }
+
+  function syncSelectAll() {
+    const visible = [...tbody.rows].filter(r => r.style.display !== 'none');
+    const checked = visible.filter(r => r.querySelector('.row-chk')?.checked);
+    selectAll.checked = visible.length > 0 && checked.length === visible.length;
+    selectAll.indeterminate = checked.length > 0 && checked.length < visible.length;
+  }
+
+  function updateBulkBar() {
+    const ids = getCheckedIds();
+    const n = ids.length;
+    if (n > 0) {
+      bulkBar.classList.remove('d-none');
+      bulkBar.classList.add('d-flex');
+    } else {
+      bulkBar.classList.add('d-none');
+      bulkBar.classList.remove('d-flex');
+    }
+    bulkCount.textContent = `${n} selected`;
+    bulkDelBtn.disabled = n === 0;
+    syncSelectAll();
+  }
+
+  tbody.addEventListener('change', e => {
+    if (e.target.classList.contains('row-chk')) updateBulkBar();
+  });
+
+  selectAll.addEventListener('change', () => {
+    [...tbody.rows].filter(r => r.style.display !== 'none').forEach(r => {
+      const chk = r.querySelector('.row-chk');
+      if (chk) chk.checked = selectAll.checked;
+    });
+    updateBulkBar();
+  });
+
+  bulkClearBtn.addEventListener('click', () => {
+    tbody.querySelectorAll('.row-chk').forEach(c => { c.checked = false; });
+    updateBulkBar();
+  });
+
+  bulkDelBtn.addEventListener('click', async () => {
+    const ids = getCheckedIds();
+    if (!ids.length) return;
+    if (!confirm(`Permanently delete ${ids.length} entr${ids.length === 1 ? 'y' : 'ies'}?`)) return;
+    bulkDelBtn.disabled = true;
+    try {
+      const r = await fetch('/api/log/bulk-delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ids}),
+      });
+      const j = await r.json();
+      if (j.status === 'ok') {
+        ids.forEach(id => {
+          const row = tbody.querySelector(`tr[data-id="${id}"]`);
+          row?.remove();
+        });
+        updateBulkBar();
+      } else {
+        alert('Delete failed: ' + (j.message || 'unknown error'));
+        bulkDelBtn.disabled = false;
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+      bulkDelBtn.disabled = false;
+    }
+  });
+
+  // ── Per-row delete buttons ────────────────────────────────────────────────
+  tbody.addEventListener('click', async e => {
+    const btn = e.target.closest('.delete-row-btn');
+    if (!btn) return;
+    const id = parseInt(btn.dataset.id);
+    if (!confirm('Delete this entry?')) return;
+    btn.disabled = true;
+    try {
+      const r = await fetch(`/api/log/${id}`, {method: 'DELETE'});
+      const j = await r.json();
+      if (j.status === 'ok') {
+        btn.closest('tr')?.remove();
+        updateBulkBar();
+      } else {
+        alert('Delete failed: ' + j.message);
+        btn.disabled = false;
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+      btn.disabled = false;
+    }
   });
 })();
 </script>
