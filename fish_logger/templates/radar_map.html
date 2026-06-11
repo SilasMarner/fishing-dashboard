@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rain Radar — {{ name }}</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:#0d1117;color:#e6edf3;font-family:system-ui,sans-serif;overflow:hidden}
+#map{height:calc(100% - 48px)}
+.bar{display:flex;align-items:center;gap:8px;padding:0 12px;background:#161b22;border-top:1px solid #30363d;height:48px;flex-shrink:0}
+.bar-btn{background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:4px 12px;border-radius:5px;cursor:pointer;font-size:12px;white-space:nowrap;transition:background .15s}
+.bar-btn:hover{background:#30363d}
+.bar-btn.active{background:#1f6feb;border-color:#1f6feb}
+.ts-label{flex:1;text-align:center;font-size:12px;color:#8b949e;font-variant-numeric:tabular-nums}
+.badge{font-size:11px;background:#21262d;border:1px solid #30363d;color:#58a6ff;padding:2px 8px;border-radius:4px;white-space:nowrap}
+.legend{position:absolute;bottom:56px;right:8px;z-index:1000;background:rgba(22,27,34,.88);border:1px solid #30363d;border-radius:6px;padding:6px 10px;font-size:11px;line-height:1.6}
+.legend-title{color:#8b949e;font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.legend-row{display:flex;align-items:center;gap:6px}
+.legend-swatch{width:14px;height:10px;border-radius:2px;flex-shrink:0}
+.leaflet-control-attribution{font-size:9px!important;opacity:.5}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="bar">
+  <button class="bar-btn" id="btnPlay" title="Play/pause animation">▶ Play</button>
+  <button class="bar-btn" id="btnNow" title="Jump to latest frame">Now</button>
+  <span class="ts-label" id="tsLabel">Loading radar…</span>
+  <span class="badge">⛅ NOAA MRMS Radar</span>
+</div>
+
+<div class="legend">
+  <div class="legend-title">Reflectivity (dBZ)</div>
+  <div class="legend-row"><span class="legend-swatch" style="background:#00e5ff"></span>&lt; 20 — Drizzle</div>
+  <div class="legend-row"><span class="legend-swatch" style="background:#00c853"></span>20–30 — Light rain</div>
+  <div class="legend-row"><span class="legend-swatch" style="background:#ffd600"></span>30–40 — Moderate</div>
+  <div class="legend-row"><span class="legend-swatch" style="background:#ff6d00"></span>40–50 — Heavy rain</div>
+  <div class="legend-row"><span class="legend-swatch" style="background:#d50000"></span>&gt; 50 — Severe</div>
+</div>
+
+<script>
+const LAT = {{ lat }}, LON = {{ lon }}, NAME = {{ name|tojson }};
+
+// ── Map setup ──────────────────────────────────────────────────────────────────
+const map = L.map('map', {
+  center: [LAT, LON], zoom: 7,
+  zoomControl: true, attributionControl: true,
+}).on('load', () => {});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  maxZoom: 19, subdomains: 'abcd',
+  attribution: '© CARTO · NOAA MRMS',
+}).addTo(map);
+
+// Station marker
+const marker = L.circleMarker([LAT, LON], {
+  radius: 7, color: '#58a6ff', fillColor: '#1f6feb',
+  fillOpacity: 0.9, weight: 2,
+}).addTo(map).bindTooltip(NAME, {permanent: false, direction: 'top'});
+
+// ── NOAA MRMS WMS animation ───────────────────────────────────────────────────
+const WMS = 'https://opengeo.ncep.noaa.gov/geoserver/conus/ows';
+let frames = [], frameIdx = 0, playing = false, playTimer = null;
+let wmsLayer = null;
+
+function genFrames(n = 13) {
+  const now  = new Date();
+  const snap = new Date(Math.floor(now / 600000) * 600000); // round down to 10-min
+  const ts   = [];
+  for (let i = n - 1; i >= 0; i--) {
+    ts.push(new Date(snap - i * 600000).toISOString().replace(/\.\d{3}Z$/, 'Z'));
+  }
+  return ts;
+}
+
+function showFrame(idx) {
+  if (wmsLayer) map.removeLayer(wmsLayer);
+  frameIdx = (idx + frames.length) % frames.length;
+  wmsLayer = L.tileLayer.wms(WMS, {
+    layers:      'conus_cref_qcd',
+    format:      'image/png',
+    transparent: true,
+    version:     '1.3.0',
+    time:        frames[frameIdx],
+    opacity:     0.72,
+    pane:        'overlayPane',
+  }).addTo(map);
+  const d = new Date(frames[frameIdx]);
+  const label = d.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit', hour12: true});
+  const isLatest = frameIdx === frames.length - 1;
+  document.getElementById('tsLabel').textContent =
+    (isLatest ? '🔴 LATEST  ' : `Frame ${frameIdx + 1}/${frames.length}  `) + label;
+}
+
+function stopPlay() {
+  playing = false;
+  clearTimeout(playTimer);
+  document.getElementById('btnPlay').textContent = '▶ Play';
+  document.getElementById('btnPlay').classList.remove('active');
+}
+
+function startPlay() {
+  playing = true;
+  document.getElementById('btnPlay').textContent = '⏸ Pause';
+  document.getElementById('btnPlay').classList.add('active');
+  (function tick() {
+    if (!playing) return;
+    const next = (frameIdx + 1) % frames.length;
+    showFrame(next);
+    playTimer = setTimeout(tick, next === frames.length - 1 ? 1200 : 450);
+  })();
+}
+
+document.getElementById('btnPlay').addEventListener('click', () => {
+  playing ? stopPlay() : startPlay();
+});
+document.getElementById('btnNow').addEventListener('click', () => {
+  stopPlay();
+  showFrame(frames.length - 1);
+});
+
+// Keyboard: space = play/pause, ← → = step frames
+document.addEventListener('keydown', e => {
+  if (e.key === ' ') { e.preventDefault(); playing ? stopPlay() : startPlay(); }
+  if (e.key === 'ArrowRight') { stopPlay(); showFrame(frameIdx + 1); }
+  if (e.key === 'ArrowLeft')  { stopPlay(); showFrame(frameIdx - 1); }
+});
+
+// Init
+frames = genFrames(13);
+showFrame(frames.length - 1);   // start on latest
+</script>
+</body>
+</html>

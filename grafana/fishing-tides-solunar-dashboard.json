@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "NOAA Tides + Solunar + Weather + Catch Analytics. Use the \ud83d\udccd Station dropdown to switch locations.",
+  "description": "Tide predictions \u00b7 solunar \u00b7 live conditions \u00b7 NOAA radar \u00b7 Windy maps \u00b7 salinity \u00b7 catch log \u00b7 AI analysis",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -23,21 +23,21 @@
   "links": [],
   "panels": [
     {
-      "collapsed": false,
-      "datasource": null,
+      "id": 100,
+      "type": "row",
+      "title": "\ud83c\udf0a Tides & Solunar \u2014 ${location}",
       "gridPos": {
-        "h": 1,
-        "w": 24,
         "x": 0,
-        "y": 0
+        "y": 0,
+        "w": 24,
+        "h": 1
       },
-      "id": 800,
+      "collapsed": false,
+      "panels": [],
+      "datasource": null,
       "options": {
         "path": ""
-      },
-      "panels": [],
-      "title": "\ud83c\udfa3 Tides & Solunar \u2014 ${location}",
-      "type": "row"
+      }
     },
     {
       "datasource": {
@@ -68,10 +68,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 14,
-        "w": 24,
         "x": 0,
-        "y": 1
+        "y": 1,
+        "w": 24,
+        "h": 16
       },
       "id": 401,
       "options": {
@@ -88,7 +88,7 @@
         "html": "<div class=\"wrap\">\n\n  <!-- \u2500\u2500 Row 1: Location buttons \u2500\u2500 -->\n  <div class=\"loc-btns\" id=\"loc-btns\">\n    <button class=\"loc-btn active\" id=\"btn-freeport_tx\">Freeport TX</button>\n    <button class=\"loc-btn\" id=\"btn-padre_island_tx\">N Padre Island TX</button>\n    <button class=\"loc-btn\" id=\"btn-pensacola_fl\">Pensacola FL</button>\n    <button class=\"loc-btn\" id=\"btn-sargent_tx\">Sargent TX</button>\n    <button class=\"loc-btn\" id=\"btn-matagorda_tx\">Matagorda TX</button>\n  </div>\n\n  <!-- \u2500\u2500 Row 2: Date picker \u2500\u2500 -->\n  <div class=\"date-row\">\n    <button class=\"nav-btn\" id=\"btn-prev\">&#8592;</button>\n    <input type=\"date\" id=\"datePicker\" />\n    <button class=\"nav-btn\" id=\"btn-next\">&#8594;</button>\n    <button class=\"nav-btn today-btn\" id=\"btn-today\">Today</button>\n    <span class=\"date-display\" id=\"date-display\"></span>\n  </div>\n\n  <!-- \u2500\u2500 Row 3: Weather strip \u2500\u2500 -->\n  <div class=\"wx-strip\" id=\"wx-strip\">\n    <div class=\"wx-strip-main\">\n      <span class=\"wx-big-temp\" id=\"wx-temp\">--</span>\n      <span class=\"wx-feels\" id=\"wx-feels\">--</span>\n      <span class=\"wx-desc\" id=\"wx-desc\">Loading weather...</span>\n    </div>\n    <div class=\"wx-strip-stats\">\n      <span class=\"wx-stat\" id=\"wx-pressure\">-- mb</span>\n      <span class=\"wx-stat trend-stat\" id=\"wx-trend\">\u2192</span>\n      <span class=\"wx-stat\" id=\"wx-wind\">-- mph --</span>\n      <span class=\"wx-stat\" id=\"wx-precip\">\ud83c\udf27\ufe0f --%</span>\n      <span class=\"wx-stat\" id=\"wx-humidity\">\ud83d\udca7 --%</span>\n      <span class=\"wx-stat\" id=\"wx-clouds\">\u2601\ufe0f --%</span>\n      <span class=\"wx-stat\" id=\"wx-visibility\">\ud83d\udc41\ufe0f -- mi</span>\n    </div>\n  </div>\n\n  <!-- \u2500\u2500 Row 4: Barometer bar \u2500\u2500 -->\n  <div class=\"baro-row\">\n    <span class=\"baro-label-left\">980</span>\n    <div class=\"baro-track\">\n      <div class=\"baro-fill\" id=\"baro-fill\"></div>\n      <div class=\"baro-marker\" id=\"baro-marker\"></div>\n    </div>\n    <span class=\"baro-label-right\">1050</span>\n    <span class=\"baro-hint\" id=\"baro-hint\"></span>\n  </div>\n\n  <!-- \u2500\u2500 Row 5: Score bar \u2500\u2500 -->\n  <div class=\"score-bar\" id=\"scoreBar\">\n    <span class=\"msg\">Loading...</span>\n  </div>\n\n  <!-- \u2500\u2500 Row 6: Tide chart \u2500\u2500 -->\n  <div class=\"chart-wrap\">\n    <canvas id=\"tideChart\"></canvas>\n  </div>\n\n  <!-- \u2500\u2500 Row 7: Fishing impact \u2500\u2500 -->\n  <div class=\"impact-bar\" id=\"impact-bar\"></div>\n\n  <!-- \u2500\u2500 Row 8: Legend \u2500\u2500 -->\n  <div class=\"legend\">\n    <span><span class=\"ldot\" style=\"background:#1e90ff;height:3px;width:18px;\"></span>Tide</span>\n    <span><span class=\"ldot\" style=\"background:rgba(46,213,115,0.5);\"></span>Major</span>\n    <span><span class=\"ldot\" style=\"background:rgba(255,195,0,0.45);\"></span>Minor</span>\n    <span><span class=\"ldot\" style=\"background:#ff6b6b;height:3px;width:18px;\"></span>Now</span>\n    <span><span class=\"ldot\" style=\"background:rgba(0,0,40,0.6);\"></span>Night</span>\n  </div>\n\n</div>",
         "onInit": "",
         "onInitOnResize": true,
-        "onRender": "// \u2500\u2500 Config \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nconst PROM       = '/api/datasources/proxy/3';\r\nconst QUERY_HOST = window.location.hostname;\r\nconst QUERY_URL  = 'http://' + QUERY_HOST + ':9878/query';\r\n\r\nlet activeLoc  = 'freeport_tx';\r\nlet activeDate = new Date();\r\n\r\nconst LOCS = [\r\n  { id:'freeport_tx',     label:'Freeport TX' },\r\n  { id:'padre_island_tx', label:'N Padre Island TX' },\r\n  { id:'pensacola_fl',    label:'Pensacola FL' },\r\n  { id:'sargent_tx',      label:'Sargent TX' },\r\n  { id:'matagorda_tx',    label:'Matagorda TX' },\r\n];\r\n\r\n// \u2500\u2500 Date helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction toDateStr(d) {\r\n  return d.getFullYear().toString() +\r\n    String(d.getMonth()+1).padStart(2,'0') +\r\n    String(d.getDate()).padStart(2,'0');\r\n}\r\nfunction toInputVal(d) {\r\n  return d.getFullYear() + '-' +\r\n    String(d.getMonth()+1).padStart(2,'0') + '-' +\r\n    String(d.getDate()).padStart(2,'0');\r\n}\r\nfunction isToday(d) {\r\n  const t = new Date();\r\n  return d.getFullYear()===t.getFullYear() && d.getMonth()===t.getMonth() && d.getDate()===t.getDate();\r\n}\r\nfunction offsetDate(d, days) {\r\n  const nd = new Date(d); nd.setDate(nd.getDate()+days); return nd;\r\n}\r\n\r\n// \u2500\u2500 Init \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction init() {\r\n  const btnContainer = htmlNode.querySelector('#loc-btns');\r\n  const picker       = htmlNode.querySelector('#datePicker');\r\n  const btnPrev      = htmlNode.querySelector('#btn-prev');\r\n  const btnNext      = htmlNode.querySelector('#btn-next');\r\n  const btnToday     = htmlNode.querySelector('#btn-today');\r\n\r\n  if (!btnContainer || !picker) { setTimeout(init, 100); return; }\r\n\r\n  picker.value = toInputVal(activeDate);\r\n\r\n  btnContainer.innerHTML = '';\r\n  LOCS.forEach(loc => {\r\n    const btn = document.createElement('button');\r\n    btn.textContent = loc.label;\r\n    btn.className   = 'loc-btn' + (loc.id === activeLoc ? ' active' : '');\r\n    btn.id          = 'btn-' + loc.id;\r\n    btn.addEventListener('click', () => setLoc(loc.id));\r\n    btnContainer.appendChild(btn);\r\n  });\r\n\r\n  picker.addEventListener('change', () => {\r\n    const parts = picker.value.split('-');\r\n    activeDate = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));\r\n    loadAndDraw(activeLoc, activeDate);\r\n  });\r\n  btnPrev.addEventListener('click', () => {\r\n    activeDate = offsetDate(activeDate, -1);\r\n    picker.value = toInputVal(activeDate);\r\n    loadAndDraw(activeLoc, activeDate);\r\n  });\r\n  btnNext.addEventListener('click', () => {\r\n    activeDate = offsetDate(activeDate, 1);\r\n    picker.value = toInputVal(activeDate);\r\n    loadAndDraw(activeLoc, activeDate);\r\n  });\r\n  btnToday.addEventListener('click', () => {\r\n    activeDate = new Date();\r\n    picker.value = toInputVal(activeDate);\r\n    loadAndDraw(activeLoc, activeDate);\r\n  });\r\n\r\n  loadAndDraw(activeLoc, activeDate);\r\n}\r\n\r\nfunction setLoc(loc) {\r\n  activeLoc = loc;\r\n  htmlNode.querySelectorAll('.loc-btn').forEach(b => b.classList.remove('active'));\r\n  const btn = htmlNode.querySelector('#btn-'+loc);\r\n  if (btn) btn.classList.add('active');\r\n  loadAndDraw(loc, activeDate);\r\n}\r\n\r\n// \u2500\u2500 Prometheus query \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction pq(expr) {\r\n  return new Promise((resolve) => {\r\n    const xhr = new XMLHttpRequest();\r\n    xhr.open('GET', PROM + '/api/v1/query?query=' + encodeURIComponent(expr), true);\r\n    xhr.onload = () => {\r\n      try { const d = JSON.parse(xhr.responseText); resolve(d.data ? d.data.result : []); }\r\n      catch(e) { resolve([]); }\r\n    };\r\n    xhr.onerror = xhr.ontimeout = () => resolve([]);\r\n    xhr.timeout = 10000;\r\n    xhr.send();\r\n  });\r\n}\r\n\r\n// \u2500\u2500 On-demand date query \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction fetchDateData(loc, d) {\r\n  return new Promise((resolve) => {\r\n    const url = QUERY_URL + '?location=' + loc + '&date=' + toDateStr(d);\r\n    const xhr = new XMLHttpRequest();\r\n    xhr.open('GET', url, true);\r\n    xhr.onload = () => {\r\n      try { resolve(JSON.parse(xhr.responseText)); }\r\n      catch(e) { resolve(null); }\r\n    };\r\n    xhr.onerror = xhr.ontimeout = () => resolve(null);\r\n    xhr.timeout = 15000;\r\n    xhr.send();\r\n  });\r\n}\r\n\r\n// \u2500\u2500 Helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction toLocalHr(unix) {\r\n  if (!unix || unix === 0) return null;\r\n  const d = new Date(parseFloat(unix) * 1000);\r\n  return d.getHours() + d.getMinutes() / 60;\r\n}\r\nfunction fmtH(h) {\r\n  if (h === null || h === undefined) return '--';\r\n  const hr = Math.floor(h), mn = Math.round((h % 1) * 60);\r\n  return (hr % 12 || 12) + ':' + (mn < 10 ? '0' : '') + mn + (hr < 12 ? 'am' : 'pm');\r\n}\r\nfunction fmtUnix(unix) { return unix ? fmtH(toLocalHr(unix)) : '--'; }\r\nfunction getByPeriod(arr, p) {\r\n  const m = arr.find(r => r.metric && r.metric.period === String(p));\r\n  return m ? parseFloat(m.value[1]) : null;\r\n}\r\nfunction scalar(arr) {\r\n  return arr && arr.length ? parseFloat(arr[0].value[1]) : null;\r\n}\r\n\r\n// \u2500\u2500 Weather rendering \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction renderWeather(loc) {\r\n  // Only render weather for today \u2014 NWS is real-time only\r\n  const wxEl   = id => htmlNode.querySelector(id);\r\n\r\n  Promise.all([\r\n    pq('fishing_weather_temp_f{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_feels_like_f{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_pressure_mb{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_pressure_trend{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_wind_speed_mph{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_wind_deg{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_precip_chance_pct{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_humidity_pct{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_cloud_cover_pct{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_visibility_miles{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather{location=\"'+loc+'\"}'),      // Info metric \u2192 labels\r\n  ]).then(R => {\r\n    const temp      = scalar(R[0]);\r\n    const feels     = scalar(R[1]);\r\n    const pressure  = scalar(R[2]);\r\n    const trend     = scalar(R[3]);   // -1 / 0 / 1\r\n    const windSpd   = scalar(R[4]);\r\n    const windDeg   = scalar(R[5]);\r\n    const precip    = scalar(R[6]);\r\n    const humidity  = scalar(R[7]);\r\n    const clouds    = scalar(R[8]);\r\n    const vis       = scalar(R[9]);\r\n\r\n    // Info metric comes back as a metric with labels, value always \"1\"\r\n    let desc = '', trendStr = '\u2192', windDir = '';\r\n    if (R[10] && R[10].length) {\r\n      const m = R[10][0].metric;\r\n      desc     = m.description  || '';\r\n      trendStr = m.pressure_trend || '\u2192';\r\n      windDir  = m.wind_dir     || '';\r\n    }\r\n\r\n    // Populate DOM\r\n    const tempEl = wxEl('#wx-temp');\r\n    if (tempEl) tempEl.textContent = temp !== null ? Math.round(temp) + '\u00b0F' : '--';\r\n\r\n    const feelsEl = wxEl('#wx-feels');\r\n    if (feelsEl) feelsEl.textContent = feels !== null ? 'Feels ' + Math.round(feels) + '\u00b0F' : '';\r\n\r\n    const descEl = wxEl('#wx-desc');\r\n    if (descEl) descEl.textContent = desc || 'N/A';\r\n\r\n    const pressEl = wxEl('#wx-pressure');\r\n    if (pressEl) pressEl.textContent = pressure !== null ? pressure.toFixed(1) + ' mb' : '-- mb';\r\n\r\n    const trendEl = wxEl('#wx-trend');\r\n    if (trendEl) {\r\n      trendEl.textContent = trendStr;\r\n      trendEl.style.color = trend > 0 ? '#2ed573' : trend < 0 ? '#ff4757' : '#ffd32a';\r\n    }\r\n\r\n    // Wind direction compass from degrees\r\n    function degToCompass(deg) {\r\n      if (deg === null) return 'N/A';\r\n      const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];\r\n      return dirs[Math.round(deg / 22.5) % 16];\r\n    }\r\n    const windEl = wxEl('#wx-wind');\r\n    if (windEl) windEl.textContent = windSpd !== null\r\n      ? windSpd.toFixed(0) + ' mph ' + (windDir || degToCompass(windDeg))\r\n      : '-- mph';\r\n\r\n    const precipEl = wxEl('#wx-precip');\r\n    if (precipEl) precipEl.textContent = '\ud83c\udf27\ufe0f ' + (precip !== null ? Math.round(precip) + '%' : '--%');\r\n\r\n    const humEl = wxEl('#wx-humidity');\r\n    if (humEl) humEl.textContent = '\ud83d\udca7 ' + (humidity !== null ? Math.round(humidity) + '%' : '--%');\r\n\r\n    const cloudEl = wxEl('#wx-clouds');\r\n    if (cloudEl) cloudEl.textContent = '\u2601\ufe0f ' + (clouds !== null ? Math.round(clouds) + '%' : '--%');\r\n\r\n    const visEl = wxEl('#wx-visibility');\r\n    if (visEl) visEl.textContent = '\ud83d\udc41\ufe0f ' + (vis !== null ? vis.toFixed(1) + ' mi' : '-- mi');\r\n\r\n    // \u2500\u2500 Barometer bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\n    // Range: 980 mb (stormy) to 1050 mb (very high)\r\n    if (pressure !== null) {\r\n      const min = 980, max = 1050;\r\n      const pct = Math.max(0, Math.min(100, ((pressure - min) / (max - min)) * 100));\r\n\r\n      const fill   = wxEl('#baro-fill');\r\n      const marker = wxEl('#baro-marker');\r\n      const hint   = wxEl('#baro-hint');\r\n\r\n      if (fill)   fill.style.width = pct + '%';\r\n      if (marker) marker.style.left = pct + '%';\r\n\r\n      if (hint) {\r\n        let baroDesc = '';\r\n        if (pressure < 1000)      baroDesc = '\u26c8\ufe0f Stormy \u2014 fish deeper';\r\n        else if (pressure < 1010) baroDesc = '\ud83c\udf27\ufe0f Low pressure \u2014 slow bite';\r\n        else if (pressure < 1020) baroDesc = '\u26c5 Normal \u2014 average bite';\r\n        else if (pressure < 1030) baroDesc = '\ud83c\udf24\ufe0f High pressure \u2014 fish edges';\r\n        else                      baroDesc = '\u2600\ufe0f Very high \u2014 tough topwater';\r\n\r\n        const trendIcon = trend > 0 ? ' \u2191 Rising' : trend < 0 ? ' \u2193 Falling' : ' \u2192 Steady';\r\n        hint.textContent = pressure.toFixed(1) + ' mb' + trendIcon + ' \u2014 ' + baroDesc;\r\n      }\r\n    }\r\n  }).catch(e => {\r\n    const descEl = htmlNode.querySelector('#wx-desc');\r\n    if (descEl) descEl.textContent = 'Weather unavailable';\r\n    console.warn('Weather fetch error:', e);\r\n  });\r\n}\r\n\r\nfunction clearWeather() {\r\n  const ids = ['#wx-temp','#wx-feels','#wx-desc','#wx-pressure','#wx-trend',\r\n               '#wx-wind','#wx-precip','#wx-humidity','#wx-clouds','#wx-visibility'];\r\n  ids.forEach(id => {\r\n    const el = htmlNode.querySelector(id);\r\n    if (el) el.textContent = id === '#wx-desc' ? 'Weather unavailable' : '--';\r\n  });\r\n  const hint = htmlNode.querySelector('#baro-hint');\r\n  if (hint) hint.textContent = '';\r\n  const fill = htmlNode.querySelector('#baro-fill');\r\n  if (fill) fill.style.width = '0%';\r\n}\r\n\r\nfunction renderWeatherFromQuery(wx) {\r\n  if (!wx || Object.keys(wx).length === 0) { clearWeather(); return; }\r\n  const wxEl = id => htmlNode.querySelector(id);\r\n  const temp     = wx.temp_f          != null ? wx.temp_f          : null;\r\n  const pressure = wx.pressure_mb     != null ? wx.pressure_mb     : null;\r\n  const windSpd  = wx.wind_speed_mph  != null ? wx.wind_speed_mph  : null;\r\n  const windDeg  = wx.wind_deg        != null ? wx.wind_deg        : null;\r\n  const precip   = wx.precip_chance   != null ? wx.precip_chance   : null;\r\n  const humidity = wx.humidity        != null ? wx.humidity        : null;\r\n  const clouds   = wx.cloud_cover     != null ? wx.cloud_cover     : null;\r\n  const desc     = wx.description || '';\r\n\r\n  const tempEl = wxEl('#wx-temp');\r\n  if (tempEl) tempEl.textContent = temp !== null ? Math.round(temp) + '\\u00b0F' : '--';\r\n\r\n  const feelsEl = wxEl('#wx-feels');\r\n  if (feelsEl) feelsEl.textContent = '';\r\n\r\n  const descEl = wxEl('#wx-desc');\r\n  if (descEl) descEl.textContent = desc || 'N/A';\r\n\r\n  const pressEl = wxEl('#wx-pressure');\r\n  if (pressEl) pressEl.textContent = pressure !== null ? pressure.toFixed(1) + ' mb' : '--';\r\n\r\n  const trendEl = wxEl('#wx-trend');\r\n  if (trendEl) { trendEl.textContent = '\\u2192'; trendEl.style.color = '#ffd32a'; }\r\n\r\n  function degToCompass(deg) {\r\n    if (deg === null) return '';\r\n    const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];\r\n    return dirs[Math.round(deg / 22.5) % 16];\r\n  }\r\n  const windEl = wxEl('#wx-wind');\r\n  if (windEl) windEl.textContent = windSpd !== null\r\n    ? windSpd.toFixed(0) + ' mph ' + degToCompass(windDeg)\r\n    : '-- mph';\r\n\r\n  const precipEl = wxEl('#wx-precip');\r\n  if (precipEl) precipEl.textContent = '\\ud83c\\udf27\\ufe0f ' + (precip !== null ? Math.round(precip) + '%' : '--%');\r\n\r\n  const humEl = wxEl('#wx-humidity');\r\n  if (humEl) humEl.textContent = '\\ud83d\\udca7 ' + (humidity !== null ? Math.round(humidity) + '%' : '--%');\r\n\r\n  const cloudEl = wxEl('#wx-clouds');\r\n  if (cloudEl) cloudEl.textContent = '\\u2601\\ufe0f ' + (clouds !== null ? Math.round(clouds) + '%' : '--%');\r\n\r\n  const visEl = wxEl('#wx-visibility');\r\n  if (visEl) visEl.textContent = '\\ud83d\\udc41\\ufe0f --';\r\n\r\n  if (pressure !== null) {\r\n    const min = 980, max = 1050;\r\n    const pct = Math.max(0, Math.min(100, ((pressure - min) / (max - min)) * 100));\r\n    const fill   = wxEl('#baro-fill');\r\n    const marker = wxEl('#baro-marker');\r\n    const hint   = wxEl('#baro-hint');\r\n    if (fill)   fill.style.width  = pct + '%';\r\n    if (marker) marker.style.left = pct + '%';\r\n    if (hint) {\r\n      let baroDesc = '';\r\n      if (pressure < 1000)      baroDesc = '\\u26c8\\ufe0f Stormy \\u2014 fish deeper';\r\n      else if (pressure < 1010) baroDesc = '\\ud83c\\udf27\\ufe0f Low pressure \\u2014 slow bite';\r\n      else if (pressure < 1020) baroDesc = '\\u26c5 Normal \\u2014 average bite';\r\n      else if (pressure < 1030) baroDesc = '\\ud83c\\udf24\\ufe0f High pressure \\u2014 fish edges';\r\n      else                      baroDesc = '\\u2600\\ufe0f Very high \\u2014 tough topwater';\r\n      hint.textContent = pressure.toFixed(1) + ' mb \\u2014 ' + baroDesc;\r\n    }\r\n  } else {\r\n    const hint = wxEl('#baro-hint');\r\n    if (hint) hint.textContent = '';\r\n    const fill = wxEl('#baro-fill');\r\n    if (fill) fill.style.width = '0%';\r\n  }\r\n}\r\n\r\n// \u2500\u2500 Main load \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction loadAndDraw(loc, d) {\r\n  const sb = htmlNode.querySelector('#scoreBar');\r\n  if (!sb) return;\r\n\r\n  const today = isToday(d);\r\n  sb.innerHTML = '<span class=\"msg\">Loading ' +\r\n    (today ? 'today' : d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})) +\r\n    '...</span>';\r\n\r\n  if (today) {\r\n    renderWeather(loc);\r\n    loadFromPrometheus(loc, sb);\r\n  } else {\r\n    loadFromQueryEndpoint(loc, d, sb);\r\n  }\r\n}\r\n\r\n// \u2500\u2500 Load from Prometheus (today) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction loadFromPrometheus(loc, sb) {\r\n  Promise.all([\r\n    pq('fishing_score_now{location=\"'+loc+'\"}'),\r\n    pq('fishing_tide_time_unix{location=\"'+loc+'\"}'),\r\n    pq('fishing_tide_height_ft{location=\"'+loc+'\"}'),\r\n    pq('fishing_solunar_major_start_unix{location=\"'+loc+'\"}'),\r\n    pq('fishing_solunar_major_end_unix{location=\"'+loc+'\"}'),\r\n    pq('fishing_solunar_minor_start_unix{location=\"'+loc+'\"}'),\r\n    pq('fishing_solunar_minor_end_unix{location=\"'+loc+'\"}'),\r\n    pq('fishing_sunrise_unix{location=\"'+loc+'\"}'),\r\n    pq('fishing_sunset_unix{location=\"'+loc+'\"}'),\r\n    pq('fishing_moonrise_unix{location=\"'+loc+'\"}'),\r\n    pq('fishing_moon_phase_pct{location=\"'+loc+'\"}'),\r\n  ]).then(R => {\r\n    const score = R[0].length ? parseFloat(R[0][0].value[1]) : null;\r\n    const moon  = R[10].length ? parseFloat(R[10][0].value[1]).toFixed(0) : '?';\r\n\r\n    // Build tide events map: key = type_rank\r\n    const tmap = {};\r\n    R[1].forEach(r => {\r\n      const k = r.metric.event_type + '_' + r.metric.event_rank;\r\n      tmap[k] = tmap[k] || { type: r.metric.event_type };\r\n      tmap[k].time = parseFloat(r.value[1]);\r\n    });\r\n    R[2].forEach(r => {\r\n      const k = r.metric.event_type + '_' + r.metric.event_rank;\r\n      tmap[k] = tmap[k] || { type: r.metric.event_type };\r\n      tmap[k].height = parseFloat(r.value[1]);\r\n    });\r\n    const events = Object.values(tmap)\r\n      .filter(e => e.time && e.height !== undefined)\r\n      .map(e => {\r\n        const dt = new Date(e.time * 1000);\r\n        return { t: dt.getHours() + dt.getMinutes()/60, h: e.height, type: e.type };\r\n      })\r\n      .sort((a,b) => a.t - b.t);\r\n\r\n    // Solunar windows \u2014 deduplicate major1/major2 if same value\r\n    const maj1s = getByPeriod(R[3], 1), maj1e = getByPeriod(R[4], 1);\r\n    const maj2s = getByPeriod(R[3], 2), maj2e = getByPeriod(R[4], 2);\r\n    const min1s = getByPeriod(R[5], 1), min1e = getByPeriod(R[6], 1);\r\n    const min2s = getByPeriod(R[5], 2), min2e = getByPeriod(R[6], 2);\r\n\r\n    const majW = [];\r\n    if (maj1s !== null && maj1e !== null) majW.push([toLocalHr(maj1s), toLocalHr(maj1e)]);\r\n    // Only add major2 if it's actually different from major1\r\n    if (maj2s !== null && maj2e !== null && Math.abs(maj2s - maj1s) > 60)\r\n      majW.push([toLocalHr(maj2s), toLocalHr(maj2e)]);\r\n\r\n    const minW = [];\r\n    if (min1s !== null && min1e !== null) minW.push([toLocalHr(min1s), toLocalHr(min1e)]);\r\n    if (min2s !== null && min2e !== null && Math.abs(min2s - min1s) > 60)\r\n      minW.push([toLocalHr(min2s), toLocalHr(min2e)]);\r\n\r\n    const sr = R[7].length ? toLocalHr(parseFloat(R[7][0].value[1])) : null;\r\n    const ss = R[8].length ? toLocalHr(parseFloat(R[8][0].value[1])) : null;\r\n    const mr = R[9].length ? toLocalHr(parseFloat(R[9][0].value[1])) : null;\r\n\r\n    renderScoreBar(sb, score, moon, sr, ss, mr);\r\n    renderImpactBar(events, majW, minW, sr, ss);\r\n    drawChart(events, majW, minW, sr, ss, true);\r\n  }).catch(e => {\r\n    sb.innerHTML = '<span class=\"err\">Error: '+e.message+'</span>';\r\n  });\r\n}\r\n\r\n// \u2500\u2500 Load from query endpoint (other dates) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction loadFromQueryEndpoint(loc, d, sb) {\r\n  fetchDateData(loc, d).then(data => {\r\n    if (!data || data.error) {\r\n      sb.innerHTML = '<span class=\"err\">Error: '+(data&&data.error ? data.error : 'fetch failed')+'</span>';\r\n      return;\r\n    }\r\n\r\n    const score = data.fishing ? data.fishing.score : null;\r\n    const moon  = data.moon ? data.moon.illumination.toFixed(0) : '?';\r\n    const sr    = toLocalHr(data.sun       ? data.sun.sunrise_unix       : 0);\r\n    const ss    = toLocalHr(data.sun       ? data.sun.sunset_unix        : 0);\r\n    const mr    = toLocalHr(data.moon_events ? data.moon_events.moonrise_unix : 0);\r\n\r\n    const events = (data.tides || [])\r\n      .filter(e => e.time_unix && e.height_ft !== undefined)\r\n      .map(e => {\r\n        const dt = new Date(e.time_unix * 1000);\r\n        return { t: dt.getHours() + dt.getMinutes()/60, h: e.height_ft, type: e.type };\r\n      })\r\n      .sort((a,b) => a.t - b.t);\r\n\r\n    const sol  = data.solunar || {};\r\n    const majW = [];\r\n    if (sol.major1_start) majW.push([toLocalHr(sol.major1_start), toLocalHr(sol.major1_end)]);\r\n    if (sol.major2_start && Math.abs(sol.major2_start - sol.major1_start) > 60)\r\n      majW.push([toLocalHr(sol.major2_start), toLocalHr(sol.major2_end)]);\r\n\r\n    const minW = [];\r\n    if (sol.minor1_start) minW.push([toLocalHr(sol.minor1_start), toLocalHr(sol.minor1_end)]);\r\n    if (sol.minor2_start && Math.abs(sol.minor2_start - sol.minor1_start) > 60)\r\n      minW.push([toLocalHr(sol.minor2_start), toLocalHr(sol.minor2_end)]);\r\n\r\n    renderWeatherFromQuery(data.weather || {});\r\n    renderScoreBar(sb, score, moon, sr, ss, mr);\r\n    renderImpactBar(events, majW, minW, sr, ss);\r\n    drawChart(events, majW, minW, sr, ss, false);\r\n  });\r\n}\r\n\r\n// \u2500\u2500 Score bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction renderScoreBar(sb, score, moon, sr, ss, mr) {\r\n  const c = score>=8?'#2ed573':score>=6?'#ffd32a':score>=4?'#ffa502':'#ff4757';\r\n  const l = score>=8?'EXCELLENT':score>=6?'GREAT':score>=4?'GOOD':score>=2?'FAIR':'SLOW';\r\n  sb.innerHTML =\r\n    '<span class=\"score-pill\" style=\"background:'+c+'22;color:'+c+';border:1px solid '+c+'55;\">' +\r\n      (score!==null ? score.toFixed(1) : '?') + '/10 \u2014 ' + l +\r\n    '</span>' +\r\n    '<span class=\"score-stat\">Moon '+moon+'%</span>' +\r\n    '<span class=\"score-stat\">\u2600\ufe0f '+fmtH(sr)+'</span>' +\r\n    '<span class=\"score-stat\">\ud83c\udf07 '+fmtH(ss)+'</span>' +\r\n    '<span class=\"score-stat\">\ud83c\udf19 '+fmtH(mr)+'</span>';\r\n}\r\n\r\n// \u2500\u2500 Impact bar \u2014 summarizes key overlaps \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction renderImpactBar(events, majW, minW, sr, ss) {\r\n  const bar = htmlNode.querySelector('#impact-bar');\r\n  if (!bar) return;\r\n\r\n  const items = [];\r\n\r\n  // Tide events\r\n  events.forEach(ev => {\r\n    const lbl = ev.type === 'High' ? '\ud83c\udf0a High' : '\u3030\ufe0f Low';\r\n    items.push('<span>' + lbl + ' tide ' + fmtH(ev.t) + ' (' + ev.h.toFixed(1) + 'ft)</span>');\r\n  });\r\n\r\n  // Solunar windows\r\n  majW.forEach((w,i) => {\r\n    if (w[0] !== null && w[1] !== null)\r\n      items.push('<span style=\"color:#2ed573\">\ud83d\udfe2 Major ' + (i+1) + ': ' + fmtH(w[0]) + '\u2013' + fmtH(w[1]) + '</span>');\r\n  });\r\n  minW.forEach((w,i) => {\r\n    if (w[0] !== null && w[1] !== null)\r\n      items.push('<span style=\"color:#ffd32a\">\ud83d\udfe1 Minor ' + (i+1) + ': ' + fmtH(w[0]) + '\u2013' + fmtH(w[1]) + '</span>');\r\n  });\r\n\r\n  // Dawn/dusk\r\n  if (sr) items.push('<span style=\"color:#ffd32a\">\u2600\ufe0f Dawn ' + fmtH(sr) + '</span>');\r\n  if (ss) items.push('<span style=\"color:#ff9f43\">\ud83c\udf07 Dusk ' + fmtH(ss) + '</span>');\r\n\r\n  bar.innerHTML = items.length ? items.join(' \u00b7 ') : '<span>No data</span>';\r\n}\r\n\r\n// \u2500\u2500 Tide curve interpolation \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction buildCurve(events) {\r\n  const pts = [], all = events.slice();\r\n  if (!all.length) { for(let i=0;i<=96;i++) pts.push({x:i*0.25,y:0.7}); return pts; }\r\n  if (all[0].t > 0) all.unshift({t:all[all.length-1].t-24, h:all[all.length-1].h, type:all[all.length-1].type});\r\n  if (all[all.length-1].t < 24) all.push({t:events[0].t+24, h:events[0].h, type:events[0].type});\r\n  for (let i=0;i<=96;i++) {\r\n    const hr=i*0.25; let val=0, tw=0;\r\n    all.forEach(ev => { const d=Math.abs(hr-ev.t), w=1/(d*d+0.08); val+=w*ev.h; tw+=w; });\r\n    pts.push({x:hr, y:val/tw});\r\n  }\r\n  return pts;\r\n}\r\n\r\n// \u2500\u2500 Chart \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction drawChart(events, majW, minW, sr, ss, showNow) {\r\n  const curve  = buildCurve(events);\r\n  const labels = curve.map(p=>p.x);\r\n  const data   = curve.map(p=>p.y);\r\n  const now    = new Date().getHours() + new Date().getMinutes()/60;\r\n  const night1 = labels.map(h=>(sr&&h<=sr)?0.45:0);\r\n  const night2 = labels.map(h=>(ss&&h>=ss)?0.45:0);\r\n  const canvas = htmlNode.querySelector('#tideChart');\r\n  if (!canvas) return;\r\n\r\n  const majData = (()=>{ const d=[]; for(let i=0;i<=96;i++){const h=i*0.25; d.push(majW.some(w=>h>=w[0]&&h<=w[1])?0.45:0);} return d; })();\r\n  const minData = (()=>{ const d=[]; for(let i=0;i<=96;i++){const h=i*0.25; d.push(minW.some(w=>h>=w[0]&&h<=w[1])?0.45:0);} return d; })();\r\n\r\n  function doRender(ChartJS) {\r\n    const existing = ChartJS.getChart(canvas);\r\n    if (existing) existing.destroy();\r\n\r\n    new ChartJS(canvas, {\r\n      type:'line',\r\n      data:{ labels, datasets:[\r\n        { type:'bar', label:'Night',         backgroundColor:'rgba(0,5,30,0.5)',       data:night1, barPercentage:1.02, categoryPercentage:1.02, yAxisID:'y', order:6 },\r\n        { type:'bar', label:'Night2',        backgroundColor:'rgba(0,5,30,0.5)',       data:night2, barPercentage:1.02, categoryPercentage:1.02, yAxisID:'y', order:6 },\r\n        { type:'bar', label:'Major solunar', backgroundColor:'rgba(46,213,115,0.22)',  data:majData, barPercentage:1.02, categoryPercentage:1.02, yAxisID:'y', order:5 },\r\n        { type:'bar', label:'Minor solunar', backgroundColor:'rgba(255,195,0,0.18)',   data:minData, barPercentage:1.02, categoryPercentage:1.02, yAxisID:'y', order:5 },\r\n        { type:'line', label:'Tide height (ft)', data, borderColor:'#1e90ff',\r\n          backgroundColor:'rgba(30,144,255,0.15)', fill:true, tension:0.42,\r\n          pointRadius:0, borderWidth:2.5, order:2, yAxisID:'y' }\r\n      ]},\r\n      options:{\r\n        responsive:true, maintainAspectRatio:false, animation:{duration:500},\r\n        plugins:{\r\n          legend:{ display:false },\r\n          tooltip:{\r\n            filter: i => i.dataset.label === 'Tide height (ft)',\r\n            backgroundColor:'#0d1f3c', titleColor:'#7eb8ff', bodyColor:'#fff',\r\n            borderColor:'#1e90ff', borderWidth:1,\r\n            callbacks:{\r\n              title: items => {\r\n                if (!items.length) return '';\r\n                const h=items[0].parsed.x, hr=Math.floor(h), mn=Math.round((h%1)*60);\r\n                return (hr%12||12)+':'+(mn<10?'0':'')+mn+(hr<12?'am':'pm');\r\n              },\r\n              label: i => ' '+i.parsed.y.toFixed(2)+' ft'\r\n            }\r\n          }\r\n        },\r\n        scales:{\r\n          x:{ type:'linear', min:0, max:24,\r\n              ticks:{ stepSize:3, color:'#3d5a7a', font:{size:10},\r\n                      callback: v => v===0?'12am':v<12?v+'am':v===12?'12pm':(v-12)+'pm' },\r\n              grid:{ color:'rgba(255,255,255,0.04)' },\r\n              border:{ color:'rgba(255,255,255,0.08)' } },\r\n          y:{ min:-0.4, max:2.6,\r\n              ticks:{ color:'#3d5a7a', font:{size:10}, stepSize:0.5, callback: v => v.toFixed(1)+'ft' },\r\n              grid:{ color:'rgba(255,255,255,0.05)' },\r\n              border:{ color:'rgba(255,255,255,0.08)' } }\r\n        }\r\n      },\r\n      plugins:[{\r\n        id:'custom',\r\n        afterDraw(ch) {\r\n          const ctx=ch.ctx, xS=ch.scales.x, yS=ch.scales.y;\r\n          // NOW line\r\n          if (showNow) {\r\n            const nx=xS.getPixelForValue(now);\r\n            ctx.save();\r\n            ctx.strokeStyle='#ff6b6b'; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);\r\n            ctx.beginPath(); ctx.moveTo(nx,yS.top); ctx.lineTo(nx,yS.bottom); ctx.stroke();\r\n            ctx.setLineDash([]);\r\n            ctx.fillStyle='#ff6b6b'; ctx.font='bold 9px Georgia'; ctx.textAlign='center';\r\n            ctx.fillText('NOW',nx,yS.top-3);\r\n            ctx.restore();\r\n          }\r\n          // Sunrise / sunset lines\r\n          [[sr,'#ffd32a','sunrise'],[ss,'#ff9f43','sunset']].forEach(([h,col,lbl])=>{\r\n            if (!h) return;\r\n            const px=xS.getPixelForValue(h);\r\n            ctx.save();\r\n            ctx.strokeStyle=col; ctx.lineWidth=1; ctx.setLineDash([2,4]);\r\n            ctx.beginPath(); ctx.moveTo(px,yS.top); ctx.lineTo(px,yS.bottom); ctx.stroke();\r\n            ctx.setLineDash([]);\r\n            ctx.fillStyle=col; ctx.font='9px Georgia'; ctx.textAlign='center';\r\n            ctx.fillText(lbl,px,yS.bottom+13);\r\n            ctx.restore();\r\n          });\r\n          // Tide event dots + labels\r\n          events.forEach(ev=>{\r\n            const ex=xS.getPixelForValue(ev.t), ey=yS.getPixelForValue(ev.h), isH=ev.type==='High';\r\n            ctx.save();\r\n            ctx.beginPath(); ctx.arc(ex,ey,5,0,Math.PI*2);\r\n            ctx.fillStyle=isH?'#1e90ff':'#48dbfb'; ctx.strokeStyle='#0a1628'; ctx.lineWidth=1.5;\r\n            ctx.fill(); ctx.stroke();\r\n            ctx.fillStyle='#b0c8e8'; ctx.font='bold 9px Georgia'; ctx.textAlign='center';\r\n            ctx.fillText((isH?'H':'L')+' '+ev.h.toFixed(1)+'ft', ex, isH?ey-11:ey+18);\r\n            ctx.restore();\r\n          });\r\n        }\r\n      }]\r\n    });\r\n  }\r\n\r\n  if (typeof Chart !== 'undefined') {\r\n    doRender(Chart);\r\n  } else {\r\n    fetch('https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js')\r\n      .then(r => r.text())\r\n      .then(src => {\r\n        const mod = new Function('exports','module', src + '; return module.exports;');\r\n        const exp = {}, m = {exports:{}};\r\n        mod(exp, m);\r\n        doRender(m.exports.Chart || m.exports);\r\n      })\r\n      .catch(e => {\r\n        const sb = htmlNode.querySelector('#scoreBar');\r\n        if (sb) sb.innerHTML += '<span class=\"err\"> Chart.js load failed: '+e.message+'</span>';\r\n      });\r\n  }\r\n}\r\n\r\n// \u2500\u2500 Boot \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\ninit();\n\n// \u2500\u2500 Sync with Grafana $location variable \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n(function() {\n  var loc = \"${location}\";\n  if (!loc || loc === \"${location}\") return;\n  var btn = document.getElementById('btn-' + loc);\n  if (btn && !btn.classList.contains('active')) { btn.click(); }\n})();\n",
+        "onRender": "// \u2500\u2500 Config \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nconst PROM       = '/api/datasources/proxy/3';\r\nconst QUERY_HOST = window.location.hostname;\r\nconst QUERY_URL  = 'http://' + QUERY_HOST + ':9878/query';\r\n\r\nlet activeLoc  = 'freeport_tx';\r\nlet activeDate = new Date();\r\n\r\nconst LOCS = [\r\n  { id:'freeport_tx',     label:'Freeport TX' },\r\n  { id:'padre_island_tx', label:'N Padre Island TX' },\r\n  { id:'pensacola_fl',    label:'Pensacola FL' },\r\n  { id:'sargent_tx',      label:'Sargent TX' },\r\n  { id:'matagorda_tx',    label:'Matagorda TX' },\r\n];\r\n\r\n// \u2500\u2500 Date helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction toDateStr(d) {\r\n  return d.getFullYear().toString() +\r\n    String(d.getMonth()+1).padStart(2,'0') +\r\n    String(d.getDate()).padStart(2,'0');\r\n}\r\nfunction toInputVal(d) {\r\n  return d.getFullYear() + '-' +\r\n    String(d.getMonth()+1).padStart(2,'0') + '-' +\r\n    String(d.getDate()).padStart(2,'0');\r\n}\r\nfunction isToday(d) {\r\n  const t = new Date();\r\n  return d.getFullYear()===t.getFullYear() && d.getMonth()===t.getMonth() && d.getDate()===t.getDate();\r\n}\r\nfunction offsetDate(d, days) {\r\n  const nd = new Date(d); nd.setDate(nd.getDate()+days); return nd;\r\n}\r\n\r\n// \u2500\u2500 Init \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction init() {\r\n  const btnContainer = htmlNode.querySelector('#loc-btns');\r\n  const picker       = htmlNode.querySelector('#datePicker');\r\n  const btnPrev      = htmlNode.querySelector('#btn-prev');\r\n  const btnNext      = htmlNode.querySelector('#btn-next');\r\n  const btnToday     = htmlNode.querySelector('#btn-today');\r\n\r\n  if (!btnContainer || !picker) { setTimeout(init, 100); return; }\r\n\r\n  picker.value = toInputVal(activeDate);\r\n\r\n  btnContainer.innerHTML = '';\r\n  LOCS.forEach(loc => {\r\n    const btn = document.createElement('button');\r\n    btn.textContent = loc.label;\r\n    btn.className   = 'loc-btn' + (loc.id === activeLoc ? ' active' : '');\r\n    btn.id          = 'btn-' + loc.id;\r\n    btn.addEventListener('click', () => setLoc(loc.id));\r\n    btnContainer.appendChild(btn);\r\n  });\r\n\r\n  picker.addEventListener('change', () => {\r\n    const parts = picker.value.split('-');\r\n    activeDate = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));\r\n    loadAndDraw(activeLoc, activeDate);\r\n  });\r\n  btnPrev.addEventListener('click', () => {\r\n    activeDate = offsetDate(activeDate, -1);\r\n    picker.value = toInputVal(activeDate);\r\n    loadAndDraw(activeLoc, activeDate);\r\n  });\r\n  btnNext.addEventListener('click', () => {\r\n    activeDate = offsetDate(activeDate, 1);\r\n    picker.value = toInputVal(activeDate);\r\n    loadAndDraw(activeLoc, activeDate);\r\n  });\r\n  btnToday.addEventListener('click', () => {\r\n    activeDate = new Date();\r\n    picker.value = toInputVal(activeDate);\r\n    loadAndDraw(activeLoc, activeDate);\r\n  });\r\n\r\n  loadAndDraw(activeLoc, activeDate);\r\n}\r\n\r\nfunction setLoc(loc) {\r\n  activeLoc = loc;\r\n  htmlNode.querySelectorAll('.loc-btn').forEach(b => b.classList.remove('active'));\r\n  const btn = htmlNode.querySelector('#btn-'+loc);\r\n  if (btn) btn.classList.add('active');\r\n  loadAndDraw(loc, activeDate);\r\n}\r\n\r\n// \u2500\u2500 Prometheus query \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction pq(expr) {\r\n  return new Promise((resolve) => {\r\n    const xhr = new XMLHttpRequest();\r\n    xhr.open('GET', PROM + '/api/v1/query?query=' + encodeURIComponent(expr), true);\r\n    xhr.onload = () => {\r\n      try { const d = JSON.parse(xhr.responseText); resolve(d.data ? d.data.result : []); }\r\n      catch(e) { resolve([]); }\r\n    };\r\n    xhr.onerror = xhr.ontimeout = () => resolve([]);\r\n    xhr.timeout = 10000;\r\n    xhr.send();\r\n  });\r\n}\r\n\r\n// \u2500\u2500 On-demand date query \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction fetchDateData(loc, d) {\r\n  return new Promise((resolve) => {\r\n    const url = QUERY_URL + '?location=' + loc + '&date=' + toDateStr(d);\r\n    const xhr = new XMLHttpRequest();\r\n    xhr.open('GET', url, true);\r\n    xhr.onload = () => {\r\n      try { resolve(JSON.parse(xhr.responseText)); }\r\n      catch(e) { resolve(null); }\r\n    };\r\n    xhr.onerror = xhr.ontimeout = () => resolve(null);\r\n    xhr.timeout = 15000;\r\n    xhr.send();\r\n  });\r\n}\r\n\r\n// \u2500\u2500 Helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction toLocalHr(unix) {\r\n  if (!unix || unix === 0) return null;\r\n  const d = new Date(parseFloat(unix) * 1000);\r\n  return d.getHours() + d.getMinutes() / 60;\r\n}\r\nfunction fmtH(h) {\r\n  if (h === null || h === undefined) return '--';\r\n  const hr = Math.floor(h), mn = Math.round((h % 1) * 60);\r\n  return (hr % 12 || 12) + ':' + (mn < 10 ? '0' : '') + mn + (hr < 12 ? 'am' : 'pm');\r\n}\r\nfunction fmtUnix(unix) { return unix ? fmtH(toLocalHr(unix)) : '--'; }\r\nfunction getByPeriod(arr, p) {\r\n  const m = arr.find(r => r.metric && r.metric.period === String(p));\r\n  return m ? parseFloat(m.value[1]) : null;\r\n}\r\nfunction scalar(arr) {\r\n  return arr && arr.length ? parseFloat(arr[0].value[1]) : null;\r\n}\r\n\r\n// \u2500\u2500 Weather rendering \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction renderWeather(loc) {\r\n  // Only render weather for today \u2014 NWS is real-time only\r\n  const wxEl   = id => htmlNode.querySelector(id);\r\n\r\n  Promise.all([\r\n    pq('fishing_weather_temp_f{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_feels_like_f{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_pressure_mb{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_pressure_trend{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_wind_speed_mph{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_wind_deg{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_precip_chance_pct{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_humidity_pct{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_cloud_cover_pct{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather_visibility_miles{location=\"'+loc+'\"}'),\r\n    pq('fishing_weather{location=\"'+loc+'\"}'),      // Info metric \u2192 labels\r\n  ]).then(R => {\r\n    const temp      = scalar(R[0]);\r\n    const feels     = scalar(R[1]);\r\n    const pressure  = scalar(R[2]);\r\n    const trend     = scalar(R[3]);   // -1 / 0 / 1\r\n    const windSpd   = scalar(R[4]);\r\n    const windDeg   = scalar(R[5]);\r\n    const precip    = scalar(R[6]);\r\n    const humidity  = scalar(R[7]);\r\n    const clouds    = scalar(R[8]);\r\n    const vis       = scalar(R[9]);\r\n\r\n    // Info metric comes back as a metric with labels, value always \"1\"\r\n    let desc = '', trendStr = '\u2192', windDir = '';\r\n    if (R[10] && R[10].length) {\r\n      const m = R[10][0].metric;\r\n      desc     = m.description  || '';\r\n      trendStr = m.pressure_trend || '\u2192';\r\n      windDir  = m.wind_dir     || '';\r\n    }\r\n\r\n    // Populate DOM\r\n    const tempEl = wxEl('#wx-temp');\r\n    if (tempEl) tempEl.textContent = temp !== null ? Math.round(temp) + '\u00b0F' : '--';\r\n\r\n    const feelsEl = wxEl('#wx-feels');\r\n    if (feelsEl) feelsEl.textContent = feels !== null ? 'Feels ' + Math.round(feels) + '\u00b0F' : '';\r\n\r\n    const descEl = wxEl('#wx-desc');\r\n    if (descEl) descEl.textContent = desc || 'N/A';\r\n\r\n    const pressEl = wxEl('#wx-pressure');\r\n    if (pressEl) pressEl.textContent = pressure !== null ? pressure.toFixed(1) + ' mb' : '-- mb';\r\n\r\n    const trendEl = wxEl('#wx-trend');\r\n    if (trendEl) {\r\n      trendEl.textContent = trendStr;\r\n      trendEl.style.color = trend > 0 ? '#2ed573' : trend < 0 ? '#ff4757' : '#ffd32a';\r\n    }\r\n\r\n    // Wind direction compass from degrees\r\n    function degToCompass(deg) {\r\n      if (deg === null) return 'N/A';\r\n      const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];\r\n      return dirs[Math.round(deg / 22.5) % 16];\r\n    }\r\n    const windEl = wxEl('#wx-wind');\r\n    if (windEl) windEl.textContent = windSpd !== null\r\n      ? windSpd.toFixed(0) + ' mph ' + (windDir || degToCompass(windDeg))\r\n      : '-- mph';\r\n\r\n    const precipEl = wxEl('#wx-precip');\r\n    if (precipEl) precipEl.textContent = '\ud83c\udf27\ufe0f ' + (precip !== null ? Math.round(precip) + '%' : '--%');\r\n\r\n    const humEl = wxEl('#wx-humidity');\r\n    if (humEl) humEl.textContent = '\ud83d\udca7 ' + (humidity !== null ? Math.round(humidity) + '%' : '--%');\r\n\r\n    const cloudEl = wxEl('#wx-clouds');\r\n    if (cloudEl) cloudEl.textContent = '\u2601\ufe0f ' + (clouds !== null ? Math.round(clouds) + '%' : '--%');\r\n\r\n    const visEl = wxEl('#wx-visibility');\r\n    if (visEl) visEl.textContent = '\ud83d\udc41\ufe0f ' + (vis !== null ? vis.toFixed(1) + ' mi' : '-- mi');\r\n\r\n    // \u2500\u2500 Barometer bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\n    // Range: 980 mb (stormy) to 1050 mb (very high)\r\n    if (pressure !== null) {\r\n      const min = 980, max = 1050;\r\n      const pct = Math.max(0, Math.min(100, ((pressure - min) / (max - min)) * 100));\r\n\r\n      const fill   = wxEl('#baro-fill');\r\n      const marker = wxEl('#baro-marker');\r\n      const hint   = wxEl('#baro-hint');\r\n\r\n      if (fill)   fill.style.width = pct + '%';\r\n      if (marker) marker.style.left = pct + '%';\r\n\r\n      if (hint) {\r\n        let baroDesc = '';\r\n        if (pressure < 1000)      baroDesc = '\u26c8\ufe0f Stormy \u2014 fish deeper';\r\n        else if (pressure < 1010) baroDesc = '\ud83c\udf27\ufe0f Low pressure \u2014 slow bite';\r\n        else if (pressure < 1020) baroDesc = '\u26c5 Normal \u2014 average bite';\r\n        else if (pressure < 1030) baroDesc = '\ud83c\udf24\ufe0f High pressure \u2014 fish edges';\r\n        else                      baroDesc = '\u2600\ufe0f Very high \u2014 tough topwater';\r\n\r\n        const trendIcon = trend > 0 ? ' \u2191 Rising' : trend < 0 ? ' \u2193 Falling' : ' \u2192 Steady';\r\n        hint.textContent = pressure.toFixed(1) + ' mb' + trendIcon + ' \u2014 ' + baroDesc;\r\n      }\r\n    }\r\n  }).catch(e => {\r\n    const descEl = htmlNode.querySelector('#wx-desc');\r\n    if (descEl) descEl.textContent = 'Weather unavailable';\r\n    console.warn('Weather fetch error:', e);\r\n  });\r\n}\r\n\r\nfunction clearWeather() {\r\n  const ids = ['#wx-temp','#wx-feels','#wx-desc','#wx-pressure','#wx-trend',\r\n               '#wx-wind','#wx-precip','#wx-humidity','#wx-clouds','#wx-visibility'];\r\n  ids.forEach(id => {\r\n    const el = htmlNode.querySelector(id);\r\n    if (el) el.textContent = id === '#wx-desc' ? 'Weather unavailable' : '--';\r\n  });\r\n  const hint = htmlNode.querySelector('#baro-hint');\r\n  if (hint) hint.textContent = '';\r\n  const fill = htmlNode.querySelector('#baro-fill');\r\n  if (fill) fill.style.width = '0%';\r\n}\r\n\r\nfunction renderWeatherFromQuery(wx) {\r\n  if (!wx || Object.keys(wx).length === 0) { clearWeather(); return; }\r\n  const wxEl = id => htmlNode.querySelector(id);\r\n  const temp     = wx.temp_f          != null ? wx.temp_f          : null;\r\n  const pressure = wx.pressure_mb     != null ? wx.pressure_mb     : null;\r\n  const windSpd  = wx.wind_speed_mph  != null ? wx.wind_speed_mph  : null;\r\n  const windDeg  = wx.wind_deg        != null ? wx.wind_deg        : null;\r\n  const precip   = wx.precip_chance   != null ? wx.precip_chance   : null;\r\n  const humidity = wx.humidity        != null ? wx.humidity        : null;\r\n  const clouds   = wx.cloud_cover     != null ? wx.cloud_cover     : null;\r\n  const desc     = wx.description || '';\r\n\r\n  const tempEl = wxEl('#wx-temp');\r\n  if (tempEl) tempEl.textContent = temp !== null ? Math.round(temp) + '\\u00b0F' : '--';\r\n\r\n  const feelsEl = wxEl('#wx-feels');\r\n  if (feelsEl) feelsEl.textContent = '';\r\n\r\n  const descEl = wxEl('#wx-desc');\r\n  if (descEl) descEl.textContent = desc || 'N/A';\r\n\r\n  const pressEl = wxEl('#wx-pressure');\r\n  if (pressEl) pressEl.textContent = pressure !== null ? pressure.toFixed(1) + ' mb' : '--';\r\n\r\n  const trendEl = wxEl('#wx-trend');\r\n  if (trendEl) { trendEl.textContent = '\\u2192'; trendEl.style.color = '#ffd32a'; }\r\n\r\n  function degToCompass(deg) {\r\n    if (deg === null) return '';\r\n    const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];\r\n    return dirs[Math.round(deg / 22.5) % 16];\r\n  }\r\n  const windEl = wxEl('#wx-wind');\r\n  if (windEl) windEl.textContent = windSpd !== null\r\n    ? windSpd.toFixed(0) + ' mph ' + degToCompass(windDeg)\r\n    : '-- mph';\r\n\r\n  const precipEl = wxEl('#wx-precip');\r\n  if (precipEl) precipEl.textContent = '\\ud83c\\udf27\\ufe0f ' + (precip !== null ? Math.round(precip) + '%' : '--%');\r\n\r\n  const humEl = wxEl('#wx-humidity');\r\n  if (humEl) humEl.textContent = '\\ud83d\\udca7 ' + (humidity !== null ? Math.round(humidity) + '%' : '--%');\r\n\r\n  const cloudEl = wxEl('#wx-clouds');\r\n  if (cloudEl) cloudEl.textContent = '\\u2601\\ufe0f ' + (clouds !== null ? Math.round(clouds) + '%' : '--%');\r\n\r\n  const visEl = wxEl('#wx-visibility');\r\n  if (visEl) visEl.textContent = '\\ud83d\\udc41\\ufe0f --';\r\n\r\n  if (pressure !== null) {\r\n    const min = 980, max = 1050;\r\n    const pct = Math.max(0, Math.min(100, ((pressure - min) / (max - min)) * 100));\r\n    const fill   = wxEl('#baro-fill');\r\n    const marker = wxEl('#baro-marker');\r\n    const hint   = wxEl('#baro-hint');\r\n    if (fill)   fill.style.width  = pct + '%';\r\n    if (marker) marker.style.left = pct + '%';\r\n    if (hint) {\r\n      let baroDesc = '';\r\n      if (pressure < 1000)      baroDesc = '\\u26c8\\ufe0f Stormy \\u2014 fish deeper';\r\n      else if (pressure < 1010) baroDesc = '\\ud83c\\udf27\\ufe0f Low pressure \\u2014 slow bite';\r\n      else if (pressure < 1020) baroDesc = '\\u26c5 Normal \\u2014 average bite';\r\n      else if (pressure < 1030) baroDesc = '\\ud83c\\udf24\\ufe0f High pressure \\u2014 fish edges';\r\n      else                      baroDesc = '\\u2600\\ufe0f Very high \\u2014 tough topwater';\r\n      hint.textContent = pressure.toFixed(1) + ' mb \\u2014 ' + baroDesc;\r\n    }\r\n  } else {\r\n    const hint = wxEl('#baro-hint');\r\n    if (hint) hint.textContent = '';\r\n    const fill = wxEl('#baro-fill');\r\n    if (fill) fill.style.width = '0%';\r\n  }\r\n}\r\n\r\n// \u2500\u2500 Main load \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction loadAndDraw(loc, d) {\r\n  const sb = htmlNode.querySelector('#scoreBar');\r\n  if (!sb) return;\r\n\r\n  const today = isToday(d);\r\n  sb.innerHTML = '<span class=\"msg\">Loading ' +\r\n    (today ? 'today' : d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})) +\r\n    '...</span>';\r\n\r\n  if (today) {\r\n    renderWeather(loc);\r\n    loadFromPrometheus(loc, sb);\r\n  } else {\r\n    loadFromQueryEndpoint(loc, d, sb);\r\n  }\r\n}\r\n\r\n// \u2500\u2500 Load from Prometheus (today) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction loadFromPrometheus(loc, sb) {\r\n  Promise.all([\r\n    pq('fishing_score_now{location=\"'+loc+'\"}'),\r\n    pq('fishing_tide_time_unix{location=\"'+loc+'\"}'),\r\n    pq('fishing_tide_height_ft{location=\"'+loc+'\"}'),\r\n    pq('fishing_solunar_major_start_unix{location=\"'+loc+'\"}'),\r\n    pq('fishing_solunar_major_end_unix{location=\"'+loc+'\"}'),\r\n    pq('fishing_solunar_minor_start_unix{location=\"'+loc+'\"}'),\r\n    pq('fishing_solunar_minor_end_unix{location=\"'+loc+'\"}'),\r\n    pq('fishing_sunrise_unix{location=\"'+loc+'\"}'),\r\n    pq('fishing_sunset_unix{location=\"'+loc+'\"}'),\r\n    pq('fishing_moonrise_unix{location=\"'+loc+'\"}'),\r\n    pq('fishing_moon_phase_pct{location=\"'+loc+'\"}'),\r\n  ]).then(R => {\r\n    const score = R[0].length ? parseFloat(R[0][0].value[1]) : null;\r\n    const moon  = R[10].length ? parseFloat(R[10][0].value[1]).toFixed(0) : '?';\r\n\r\n    // Build tide events map: key = type_rank\r\n    const tmap = {};\r\n    R[1].forEach(r => {\r\n      const k = r.metric.event_type + '_' + r.metric.event_rank;\r\n      tmap[k] = tmap[k] || { type: r.metric.event_type };\r\n      tmap[k].time = parseFloat(r.value[1]);\r\n    });\r\n    R[2].forEach(r => {\r\n      const k = r.metric.event_type + '_' + r.metric.event_rank;\r\n      tmap[k] = tmap[k] || { type: r.metric.event_type };\r\n      tmap[k].height = parseFloat(r.value[1]);\r\n    });\r\n    const events = Object.values(tmap)\r\n      .filter(e => e.time && e.height !== undefined)\r\n      .map(e => {\r\n        const dt = new Date(e.time * 1000);\r\n        return { t: dt.getHours() + dt.getMinutes()/60, h: e.height, type: e.type };\r\n      })\r\n      .sort((a,b) => a.t - b.t);\r\n\r\n    // Solunar windows \u2014 deduplicate major1/major2 if same value\r\n    const maj1s = getByPeriod(R[3], 1), maj1e = getByPeriod(R[4], 1);\r\n    const maj2s = getByPeriod(R[3], 2), maj2e = getByPeriod(R[4], 2);\r\n    const min1s = getByPeriod(R[5], 1), min1e = getByPeriod(R[6], 1);\r\n    const min2s = getByPeriod(R[5], 2), min2e = getByPeriod(R[6], 2);\r\n\r\n    const majW = [];\r\n    if (maj1s !== null && maj1e !== null) majW.push([toLocalHr(maj1s), toLocalHr(maj1e)]);\r\n    // Only add major2 if it's actually different from major1\r\n    if (maj2s !== null && maj2e !== null && Math.abs(maj2s - maj1s) > 60)\r\n      majW.push([toLocalHr(maj2s), toLocalHr(maj2e)]);\r\n\r\n    const minW = [];\r\n    if (min1s !== null && min1e !== null) minW.push([toLocalHr(min1s), toLocalHr(min1e)]);\r\n    if (min2s !== null && min2e !== null && Math.abs(min2s - min1s) > 60)\r\n      minW.push([toLocalHr(min2s), toLocalHr(min2e)]);\r\n\r\n    const sr = R[7].length ? toLocalHr(parseFloat(R[7][0].value[1])) : null;\r\n    const ss = R[8].length ? toLocalHr(parseFloat(R[8][0].value[1])) : null;\r\n    const mr = R[9].length ? toLocalHr(parseFloat(R[9][0].value[1])) : null;\r\n\r\n    renderScoreBar(sb, score, moon, sr, ss, mr);\r\n    renderImpactBar(events, majW, minW, sr, ss);\r\n    drawChart(events, majW, minW, sr, ss, true);\r\n  }).catch(e => {\r\n    sb.innerHTML = '<span class=\"err\">Error: '+e.message+'</span>';\r\n  });\r\n}\r\n\r\n// \u2500\u2500 Load from query endpoint (other dates) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction loadFromQueryEndpoint(loc, d, sb) {\r\n  fetchDateData(loc, d).then(data => {\r\n    if (!data || data.error) {\r\n      sb.innerHTML = '<span class=\"err\">Error: '+(data&&data.error ? data.error : 'fetch failed')+'</span>';\r\n      return;\r\n    }\r\n\r\n    const score = data.fishing ? data.fishing.score : null;\r\n    const moon  = data.moon ? data.moon.illumination.toFixed(0) : '?';\r\n    const sr    = toLocalHr(data.sun       ? data.sun.sunrise_unix       : 0);\r\n    const ss    = toLocalHr(data.sun       ? data.sun.sunset_unix        : 0);\r\n    const mr    = toLocalHr(data.moon_events ? data.moon_events.moonrise_unix : 0);\r\n\r\n    const events = (data.tides || [])\r\n      .filter(e => e.time_unix && e.height_ft !== undefined)\r\n      .map(e => {\r\n        const dt = new Date(e.time_unix * 1000);\r\n        return { t: dt.getHours() + dt.getMinutes()/60, h: e.height_ft, type: e.type };\r\n      })\r\n      .sort((a,b) => a.t - b.t);\r\n\r\n    const sol  = data.solunar || {};\r\n    const majW = [];\r\n    if (sol.major1_start) majW.push([toLocalHr(sol.major1_start), toLocalHr(sol.major1_end)]);\r\n    if (sol.major2_start && Math.abs(sol.major2_start - sol.major1_start) > 60)\r\n      majW.push([toLocalHr(sol.major2_start), toLocalHr(sol.major2_end)]);\r\n\r\n    const minW = [];\r\n    if (sol.minor1_start) minW.push([toLocalHr(sol.minor1_start), toLocalHr(sol.minor1_end)]);\r\n    if (sol.minor2_start && Math.abs(sol.minor2_start - sol.minor1_start) > 60)\r\n      minW.push([toLocalHr(sol.minor2_start), toLocalHr(sol.minor2_end)]);\r\n\r\n    renderWeatherFromQuery(data.weather || {});\r\n    renderScoreBar(sb, score, moon, sr, ss, mr);\r\n    renderImpactBar(events, majW, minW, sr, ss);\r\n    drawChart(events, majW, minW, sr, ss, false);\r\n  });\r\n}\r\n\r\n// \u2500\u2500 Score bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction renderScoreBar(sb, score, moon, sr, ss, mr) {\r\n  const c = score>=8?'#2ed573':score>=6?'#ffd32a':score>=4?'#ffa502':'#ff4757';\r\n  const l = score>=8?'EXCELLENT':score>=6?'GREAT':score>=4?'GOOD':score>=2?'FAIR':'SLOW';\r\n  sb.innerHTML =\r\n    '<span class=\"score-pill\" style=\"background:'+c+'22;color:'+c+';border:1px solid '+c+'55;\">' +\r\n      (score!==null ? score.toFixed(1) : '?') + '/10 \u2014 ' + l +\r\n    '</span>' +\r\n    '<span class=\"score-stat\">Moon '+moon+'%</span>' +\r\n    '<span class=\"score-stat\">\u2600\ufe0f '+fmtH(sr)+'</span>' +\r\n    '<span class=\"score-stat\">\ud83c\udf07 '+fmtH(ss)+'</span>' +\r\n    '<span class=\"score-stat\">\ud83c\udf19 '+fmtH(mr)+'</span>';\r\n}\r\n\r\n// \u2500\u2500 Impact bar \u2014 summarizes key overlaps \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction renderImpactBar(events, majW, minW, sr, ss) {\r\n  const bar = htmlNode.querySelector('#impact-bar');\r\n  if (!bar) return;\r\n\r\n  const items = [];\r\n\r\n  // Tide events\r\n  events.forEach(ev => {\r\n    const lbl = ev.type === 'High' ? '\ud83c\udf0a High' : '\u3030\ufe0f Low';\r\n    items.push('<span>' + lbl + ' tide ' + fmtH(ev.t) + ' (' + ev.h.toFixed(1) + 'ft)</span>');\r\n  });\r\n\r\n  // Solunar windows\r\n  majW.forEach((w,i) => {\r\n    if (w[0] !== null && w[1] !== null)\r\n      items.push('<span style=\"color:#2ed573\">\ud83d\udfe2 Major ' + (i+1) + ': ' + fmtH(w[0]) + '\u2013' + fmtH(w[1]) + '</span>');\r\n  });\r\n  minW.forEach((w,i) => {\r\n    if (w[0] !== null && w[1] !== null)\r\n      items.push('<span style=\"color:#ffd32a\">\ud83d\udfe1 Minor ' + (i+1) + ': ' + fmtH(w[0]) + '\u2013' + fmtH(w[1]) + '</span>');\r\n  });\r\n\r\n  // Dawn/dusk\r\n  if (sr) items.push('<span style=\"color:#ffd32a\">\u2600\ufe0f Dawn ' + fmtH(sr) + '</span>');\r\n  if (ss) items.push('<span style=\"color:#ff9f43\">\ud83c\udf07 Dusk ' + fmtH(ss) + '</span>');\r\n\r\n  bar.innerHTML = items.length ? items.join(' \u00b7 ') : '<span>No data</span>';\r\n}\r\n\r\n// \u2500\u2500 Tide curve interpolation \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction buildCurve(events) {\r\n  const pts = [], all = events.slice();\r\n  if (!all.length) { for(let i=0;i<=96;i++) pts.push({x:i*0.25,y:0.7}); return pts; }\r\n  if (all[0].t > 0) all.unshift({t:all[all.length-1].t-24, h:all[all.length-1].h, type:all[all.length-1].type});\r\n  if (all[all.length-1].t < 24) all.push({t:events[0].t+24, h:events[0].h, type:events[0].type});\r\n  for (let i=0;i<=96;i++) {\r\n    const hr=i*0.25; let val=0, tw=0;\r\n    all.forEach(ev => { const d=Math.abs(hr-ev.t), w=1/(d*d+0.08); val+=w*ev.h; tw+=w; });\r\n    pts.push({x:hr, y:val/tw});\r\n  }\r\n  return pts;\r\n}\r\n\r\n// \u2500\u2500 Chart \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\nfunction drawChart(events, majW, minW, sr, ss, showNow) {\r\n  const curve  = buildCurve(events);\r\n  const labels = curve.map(p=>p.x);\r\n  const data   = curve.map(p=>p.y);\r\n  const now    = new Date().getHours() + new Date().getMinutes()/60;\r\n  const night1 = labels.map(h=>(sr&&h<=sr)?0.45:0);\r\n  const night2 = labels.map(h=>(ss&&h>=ss)?0.45:0);\r\n  const canvas = htmlNode.querySelector('#tideChart');\r\n  if (!canvas) return;\r\n\r\n  const majData = (()=>{ const d=[]; for(let i=0;i<=96;i++){const h=i*0.25; d.push(majW.some(w=>h>=w[0]&&h<=w[1])?0.45:0);} return d; })();\r\n  const minData = (()=>{ const d=[]; for(let i=0;i<=96;i++){const h=i*0.25; d.push(minW.some(w=>h>=w[0]&&h<=w[1])?0.45:0);} return d; })();\r\n\r\n  function doRender(ChartJS) {\r\n    const existing = ChartJS.getChart(canvas);\r\n    if (existing) existing.destroy();\r\n\r\n    new ChartJS(canvas, {\r\n      type:'line',\r\n      data:{ labels, datasets:[\r\n        { type:'bar', label:'Night',         backgroundColor:'rgba(0,5,30,0.5)',       data:night1, barPercentage:1.02, categoryPercentage:1.02, yAxisID:'y', order:6 },\r\n        { type:'bar', label:'Night2',        backgroundColor:'rgba(0,5,30,0.5)',       data:night2, barPercentage:1.02, categoryPercentage:1.02, yAxisID:'y', order:6 },\r\n        { type:'bar', label:'Major solunar', backgroundColor:'rgba(46,213,115,0.22)',  data:majData, barPercentage:1.02, categoryPercentage:1.02, yAxisID:'y', order:5 },\r\n        { type:'bar', label:'Minor solunar', backgroundColor:'rgba(255,195,0,0.18)',   data:minData, barPercentage:1.02, categoryPercentage:1.02, yAxisID:'y', order:5 },\r\n        { type:'line', label:'Tide height (ft)', data, borderColor:'#1e90ff',\r\n          backgroundColor:'rgba(30,144,255,0.15)', fill:true, tension:0.42,\r\n          pointRadius:0, borderWidth:2.5, order:2, yAxisID:'y' }\r\n      ]},\r\n      options:{\r\n        responsive:true, maintainAspectRatio:false, animation:{duration:500},\r\n        plugins:{\r\n          legend:{ display:false },\r\n          tooltip:{\r\n            filter: i => i.dataset.label === 'Tide height (ft)',\r\n            backgroundColor:'#0d1f3c', titleColor:'#7eb8ff', bodyColor:'#fff',\r\n            borderColor:'#1e90ff', borderWidth:1,\r\n            callbacks:{\r\n              title: items => {\r\n                if (!items.length) return '';\r\n                const h=items[0].parsed.x, hr=Math.floor(h), mn=Math.round((h%1)*60);\r\n                return (hr%12||12)+':'+(mn<10?'0':'')+mn+(hr<12?'am':'pm');\r\n              },\r\n              label: i => ' '+i.parsed.y.toFixed(2)+' ft'\r\n            }\r\n          }\r\n        },\r\n        scales:{\r\n          x:{ type:'linear', min:0, max:24,\r\n              ticks:{ stepSize:3, color:'#3d5a7a', font:{size:10},\r\n                      callback: v => v===0?'12am':v<12?v+'am':v===12?'12pm':(v-12)+'pm' },\r\n              grid:{ color:'rgba(255,255,255,0.04)' },\r\n              border:{ color:'rgba(255,255,255,0.08)' } },\r\n          y:{ min:-0.4, max:2.6,\r\n              ticks:{ color:'#3d5a7a', font:{size:10}, stepSize:0.5, callback: v => v.toFixed(1)+'ft' },\r\n              grid:{ color:'rgba(255,255,255,0.05)' },\r\n              border:{ color:'rgba(255,255,255,0.08)' } }\r\n        }\r\n      },\r\n      plugins:[{\r\n        id:'custom',\r\n        afterDraw(ch) {\r\n          const ctx=ch.ctx, xS=ch.scales.x, yS=ch.scales.y;\r\n          // NOW line\r\n          if (showNow) {\r\n            const nx=xS.getPixelForValue(now);\r\n            ctx.save();\r\n            ctx.strokeStyle='#ff6b6b'; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);\r\n            ctx.beginPath(); ctx.moveTo(nx,yS.top); ctx.lineTo(nx,yS.bottom); ctx.stroke();\r\n            ctx.setLineDash([]);\r\n            ctx.fillStyle='#ff6b6b'; ctx.font='bold 9px Georgia'; ctx.textAlign='center';\r\n            ctx.fillText('NOW',nx,yS.top-3);\r\n            ctx.restore();\r\n          }\r\n          // Sunrise / sunset lines\r\n          [[sr,'#ffd32a','sunrise'],[ss,'#ff9f43','sunset']].forEach(([h,col,lbl])=>{\r\n            if (!h) return;\r\n            const px=xS.getPixelForValue(h);\r\n            ctx.save();\r\n            ctx.strokeStyle=col; ctx.lineWidth=1; ctx.setLineDash([2,4]);\r\n            ctx.beginPath(); ctx.moveTo(px,yS.top); ctx.lineTo(px,yS.bottom); ctx.stroke();\r\n            ctx.setLineDash([]);\r\n            ctx.fillStyle=col; ctx.font='9px Georgia'; ctx.textAlign='center';\r\n            ctx.fillText(lbl,px,yS.bottom+13);\r\n            ctx.restore();\r\n          });\r\n          // Tide event dots + labels\r\n          events.forEach(ev=>{\r\n            const ex=xS.getPixelForValue(ev.t), ey=yS.getPixelForValue(ev.h), isH=ev.type==='High';\r\n            ctx.save();\r\n            ctx.beginPath(); ctx.arc(ex,ey,5,0,Math.PI*2);\r\n            ctx.fillStyle=isH?'#1e90ff':'#48dbfb'; ctx.strokeStyle='#0a1628'; ctx.lineWidth=1.5;\r\n            ctx.fill(); ctx.stroke();\r\n            ctx.fillStyle='#b0c8e8'; ctx.font='bold 9px Georgia'; ctx.textAlign='center';\r\n            ctx.fillText((isH?'H':'L')+' '+ev.h.toFixed(1)+'ft', ex, isH?ey-11:ey+18);\r\n            ctx.restore();\r\n          });\r\n        }\r\n      }]\r\n    });\r\n  }\r\n\r\n  if (typeof Chart !== 'undefined') {\r\n    doRender(Chart);\r\n  } else {\r\n    fetch('https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js')\r\n      .then(r => r.text())\r\n      .then(src => {\r\n        const mod = new Function('exports','module', src + '; return module.exports;');\r\n        const exp = {}, m = {exports:{}};\r\n        mod(exp, m);\r\n        doRender(m.exports.Chart || m.exports);\r\n      })\r\n      .catch(e => {\r\n        const sb = htmlNode.querySelector('#scoreBar');\r\n        if (sb) sb.innerHTML += '<span class=\"err\"> Chart.js load failed: '+e.message+'</span>';\r\n      });\r\n  }\r\n}\r\n\r\n// \u2500\u2500 Boot \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\r\ninit();\n\n// \u2500\u2500 Sync with Grafana $location variable \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n(function() {\n  var loc = \"${location}\";\n  if (!loc || loc === \"${location}\") return;\n  var btn = document.getElementById('btn-' + loc);\n  if (btn && !btn.classList.contains('active')) { btn.click(); }\n})();\n\n// Sync with Grafana $location variable\n(function() {\n  var loc = \"${location}\";\n  if (!loc || loc === \"${location}\") return;\n  var btn = document.getElementById('btn-' + loc);\n  if (btn && !btn.classList.contains('active')) { btn.click(); }\n})();\n",
         "overflow": "visible",
         "panelupdateOnMount": true,
         "reduceOptions": {
@@ -134,21 +134,21 @@
       "type": "gapit-htmlgraphics-panel"
     },
     {
-      "collapsed": false,
-      "datasource": null,
+      "id": 110,
+      "type": "row",
+      "title": "\ud83d\udcca Live Metrics \u2014 ${location}",
       "gridPos": {
-        "h": 1,
-        "w": 24,
         "x": 0,
-        "y": 15
+        "y": 17,
+        "w": 24,
+        "h": 1
       },
-      "id": 150,
+      "collapsed": false,
+      "panels": [],
+      "datasource": null,
       "options": {
         "path": ""
-      },
-      "panels": [],
-      "title": "\ud83d\udcca Live Conditions \u2014 ${location}",
-      "type": "row"
+      }
     },
     {
       "datasource": "fff4bv1enp79cf",
@@ -186,12 +186,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 5,
-        "w": 4,
         "x": 0,
-        "y": 16
+        "y": 18,
+        "w": 4,
+        "h": 5
       },
-      "id": 11,
+      "id": 211,
       "options": {
         "minVizHeight": 75,
         "minVizWidth": 75,
@@ -242,12 +242,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 5,
-        "w": 4,
         "x": 4,
-        "y": 16
+        "y": 18,
+        "w": 4,
+        "h": 5
       },
-      "id": 12,
+      "id": 212,
       "options": {
         "colorMode": "background",
         "graphMode": "area",
@@ -302,12 +302,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 5,
-        "w": 3,
         "x": 8,
-        "y": 16
+        "y": 18,
+        "w": 4,
+        "h": 5
       },
-      "id": 13,
+      "id": 213,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -373,12 +373,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 11,
-        "y": 16
+        "x": 12,
+        "y": 18,
+        "w": 4,
+        "h": 5
       },
-      "id": 14,
+      "id": 214,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -444,12 +444,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 14,
-        "y": 16
+        "x": 16,
+        "y": 18,
+        "w": 4,
+        "h": 5
       },
-      "id": 15,
+      "id": 215,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -541,12 +541,12 @@
         ]
       },
       "gridPos": {
-        "h": 5,
-        "w": 7,
-        "x": 17,
-        "y": 16
+        "x": 20,
+        "y": 18,
+        "w": 4,
+        "h": 5
       },
-      "id": 16,
+      "id": 216,
       "options": {
         "cellHeight": "sm",
         "frameIndex": 1,
@@ -583,7 +583,7 @@
           "refId": "D"
         }
       ],
-      "title": "\ud83d\udd3a Today's Tide Events",
+      "title": "\ud83d\udd3a Tide Events",
       "type": "table"
     },
     {
@@ -609,12 +609,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 12,
         "x": 0,
-        "y": 21
+        "y": 23,
+        "w": 8,
+        "h": 4
       },
-      "id": 17,
+      "id": 217,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -685,12 +685,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 12,
-        "x": 12,
-        "y": 21
+        "x": 8,
+        "y": 23,
+        "w": 8,
+        "h": 4
       },
-      "id": 18,
+      "id": 218,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -761,12 +761,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 24,
-        "x": 0,
-        "y": 25
+        "x": 16,
+        "y": 23,
+        "w": 8,
+        "h": 4
       },
-      "id": 19,
+      "id": 219,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -815,21 +815,131 @@
       "type": "stat"
     },
     {
-      "collapsed": false,
-      "datasource": null,
+      "id": 120,
+      "type": "row",
+      "title": "\ud83d\uddfa\ufe0f Weather & Ocean Maps",
       "gridPos": {
-        "h": 1,
-        "w": 24,
         "x": 0,
-        "y": 29
+        "y": 27,
+        "w": 24,
+        "h": 1
       },
-      "id": 810,
+      "collapsed": false,
+      "panels": [],
+      "datasource": null,
       "options": {
         "path": ""
+      }
+    },
+    {
+      "id": 301,
+      "type": "gapit-htmlgraphics-panel",
+      "title": "\u26c5 Rain Radar",
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 8,
+        "h": 20
       },
-      "panels": [],
+      "options": {
+        "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe src=\"http://10.0.0.13:9879/map/radar?location=$location\" style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
+        "css": "",
+        "onRender": "",
+        "onInit": "",
+        "SVGBaseFix": false,
+        "add100Percentage": true,
+        "centerAlignContent": false,
+        "dynamicHtmlGraphics": {
+          "dynamicData": {},
+          "dynamicProps": []
+        }
+      },
+      "datasource": null,
+      "targets": [],
+      "transparent": true,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 302,
+      "type": "gapit-htmlgraphics-panel",
+      "title": "\ud83c\udf2c\ufe0f Wind & Marine",
+      "gridPos": {
+        "x": 8,
+        "y": 28,
+        "w": 8,
+        "h": 20
+      },
+      "options": {
+        "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe src=\"http://10.0.0.13:9879/map/wind?location=$location\" style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
+        "css": "",
+        "onRender": "",
+        "onInit": "",
+        "SVGBaseFix": false,
+        "add100Percentage": true,
+        "centerAlignContent": false,
+        "dynamicHtmlGraphics": {
+          "dynamicData": {},
+          "dynamicProps": []
+        }
+      },
+      "datasource": null,
+      "targets": [],
+      "transparent": true,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 303,
+      "type": "gapit-htmlgraphics-panel",
+      "title": "\ud83e\uddc2 Salinity Forecast",
+      "gridPos": {
+        "x": 16,
+        "y": 28,
+        "w": 8,
+        "h": 20
+      },
+      "options": {
+        "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe src=\"http://10.0.0.13:9879/map/salinity?location=$location\" style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
+        "css": "",
+        "onRender": "",
+        "onInit": "",
+        "SVGBaseFix": false,
+        "add100Percentage": true,
+        "centerAlignContent": false,
+        "dynamicHtmlGraphics": {
+          "dynamicData": {},
+          "dynamicProps": []
+        }
+      },
+      "datasource": null,
+      "targets": [],
+      "transparent": true,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 130,
+      "type": "row",
       "title": "\ud83d\udd0d Station Lookup \u2014 Any NOAA Station",
-      "type": "row"
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": [],
+      "datasource": null,
+      "options": {
+        "path": ""
+      }
     },
     {
       "datasource": {
@@ -837,10 +947,10 @@
         "uid": "-- Mixed --"
       },
       "gridPos": {
-        "h": 12,
-        "w": 24,
         "x": 0,
-        "y": 30
+        "y": 49,
+        "w": 24,
+        "h": 12
       },
       "id": 801,
       "options": {
@@ -877,69 +987,69 @@
       "type": "gapit-htmlgraphics-panel"
     },
     {
-      "collapsed": false,
-      "datasource": null,
+      "id": 140,
+      "type": "row",
+      "title": "\ud83d\udcc8 Catch Analytics \u2014 ${location}",
       "gridPos": {
-        "h": 1,
-        "w": 24,
         "x": 0,
-        "y": 42
+        "y": 61,
+        "w": 24,
+        "h": 1
       },
-      "id": 820,
+      "collapsed": false,
+      "panels": [],
+      "datasource": null,
       "options": {
         "path": ""
-      },
-      "panels": [],
-      "title": "\ud83d\udcc8 Catch Statistics \u2014 ${location}",
-      "type": "row"
+      }
     },
     {
-      "datasource": null,
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 22,
-        "w": 24,
-        "x": 0,
-        "y": 43
-      },
       "id": 510,
+      "type": "gapit-htmlgraphics-panel",
+      "title": "Stats",
+      "gridPos": {
+        "x": 0,
+        "y": 62,
+        "w": 24,
+        "h": 24
+      },
       "options": {
+        "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe src=\"http://10.0.0.13:9879/stats?location=$location\" style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
+        "css": "",
+        "onRender": "",
+        "onInit": "",
         "SVGBaseFix": false,
         "add100Percentage": true,
         "centerAlignContent": false,
-        "css": "",
         "dynamicHtmlGraphics": {
           "dynamicData": {},
           "dynamicProps": []
-        },
-        "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe src=\"http://10.0.0.13:9879/stats?location=$location\" style=\"width:100%;height:100%;border:0;background:#0d1117\" allow=\"fullscreen\"></iframe>",
-        "onInit": "",
-        "onRender": ""
+        }
       },
+      "datasource": null,
       "targets": [],
-      "title": "",
       "transparent": true,
-      "type": "gapit-htmlgraphics-panel"
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
     },
     {
-      "collapsed": false,
-      "datasource": null,
+      "id": 150,
+      "type": "row",
+      "title": "\ud83c\udfa3 Fish Log \u2014 ${location}",
       "gridPos": {
-        "h": 1,
-        "w": 24,
         "x": 0,
-        "y": 65
+        "y": 86,
+        "w": 24,
+        "h": 1
       },
-      "id": 500,
+      "collapsed": false,
+      "panels": [],
+      "datasource": null,
       "options": {
         "path": ""
-      },
-      "panels": [],
-      "title": "\ud83c\udfa3 Fish Log \u2014 ${location}",
-      "type": "row"
+      }
     },
     {
       "datasource": null,
@@ -948,10 +1058,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 14,
-        "w": 24,
         "x": 0,
-        "y": 66
+        "y": 87,
+        "w": 24,
+        "h": 14
       },
       "id": 501,
       "options": {
@@ -987,10 +1097,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
-        "w": 24,
         "x": 0,
-        "y": 80
+        "y": 101,
+        "w": 24,
+        "h": 10
       },
       "id": 502,
       "options": {
@@ -1014,21 +1124,21 @@
       "type": "table"
     },
     {
-      "collapsed": false,
-      "datasource": null,
+      "id": 160,
+      "type": "row",
+      "title": "\ud83e\udd16 AI Fishing Analysis \u2014 ${location}",
       "gridPos": {
-        "h": 1,
-        "w": 24,
         "x": 0,
-        "y": 90
+        "y": 111,
+        "w": 24,
+        "h": 1
       },
-      "id": 503,
+      "collapsed": false,
+      "panels": [],
+      "datasource": null,
       "options": {
         "path": ""
-      },
-      "panels": [],
-      "title": "\ud83e\udd16 AI Fishing Analysis \u2014 ${location}",
-      "type": "row"
+      }
     },
     {
       "datasource": null,
@@ -1037,10 +1147,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 18,
-        "w": 24,
         "x": 0,
-        "y": 91
+        "y": 112,
+        "w": 24,
+        "h": 18
       },
       "id": 504,
       "options": {
@@ -1076,50 +1186,49 @@
   "templating": {
     "list": [
       {
-        "current": {
-          "selected": true,
-          "text": "Freeport TX",
-          "value": "freeport_tx"
-        },
-        "datasource": null,
-        "description": "Select fishing station \u2014 all metrics, log, and analysis update",
+        "name": "location",
+        "type": "custom",
+        "label": "\ud83d\udccd Station",
         "hide": 0,
         "includeAll": false,
-        "label": "\ud83d\udccd Station",
         "multi": false,
-        "name": "location",
+        "current": {
+          "text": "Freeport TX",
+          "value": "freeport_tx",
+          "selected": true
+        },
         "options": [
           {
-            "selected": true,
             "text": "Freeport TX",
-            "value": "freeport_tx"
+            "value": "freeport_tx",
+            "selected": true
           },
           {
-            "selected": false,
             "text": "N Padre Island TX",
-            "value": "padre_island_tx"
+            "value": "padre_island_tx",
+            "selected": false
           },
           {
-            "selected": false,
             "text": "Pensacola FL",
-            "value": "pensacola_fl"
+            "value": "pensacola_fl",
+            "selected": false
           },
           {
-            "selected": false,
             "text": "Sargent TX",
-            "value": "sargent_tx"
+            "value": "sargent_tx",
+            "selected": false
           },
           {
-            "selected": false,
             "text": "Matagorda TX",
-            "value": "matagorda_tx"
+            "value": "matagorda_tx",
+            "selected": false
           }
         ],
         "query": "Freeport TX : freeport_tx,N Padre Island TX : padre_island_tx,Pensacola FL : pensacola_fl,Sargent TX : sargent_tx,Matagorda TX : matagorda_tx",
         "refresh": 0,
-        "skipUrlSync": false,
         "sort": 0,
-        "type": "custom"
+        "skipUrlSync": false,
+        "datasource": null
       }
     ]
   },
@@ -1129,8 +1238,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "\ud83c\udfa3 Fishing Tides & Solunar",
+  "title": "\ud83c\udfa3 Fishing \u00b7 Tides \u00b7 Weather \u00b7 Maps",
   "uid": "fishing-tides-solunar-v1",
-  "version": 58,
+  "version": 59,
   "weekStart": ""
 }

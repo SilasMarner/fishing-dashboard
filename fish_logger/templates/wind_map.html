@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wind Map — {{ name }}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:#0d1117;overflow:hidden;font-family:system-ui,sans-serif;color:#e6edf3}
+.bar{display:flex;align-items:center;gap:6px;padding:0 10px;background:#161b22;border-bottom:1px solid #30363d;height:40px;flex-shrink:0;overflow-x:auto}
+.bar-btn{background:#21262d;border:1px solid #30363d;color:#8b949e;padding:3px 11px;border-radius:5px;cursor:pointer;font-size:12px;white-space:nowrap;transition:all .15s}
+.bar-btn:hover{border-color:#58a6ff;color:#e6edf3}
+.bar-btn.active{background:#1f6feb;border-color:#1f6feb;color:#fff}
+.bar-title{font-size:12px;color:#8b949e;margin-left:auto;white-space:nowrap}
+#windy-frame{width:100%;height:calc(100% - 40px);border:0;display:block}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <span style="font-size:13px;color:#58a6ff;font-weight:600;white-space:nowrap">🌬️ Wind &amp; Marine</span>
+  <span style="color:#30363d;font-size:16px">|</span>
+  <button class="bar-btn active" onclick="setOverlay('wind')">💨 Wind</button>
+  <button class="bar-btn" onclick="setOverlay('rain')">🌧️ Rain</button>
+  <button class="bar-btn" onclick="setOverlay('waves')">🌊 Waves</button>
+  <button class="bar-btn" onclick="setOverlay('temp')">🌡️ Temp</button>
+  <button class="bar-btn" onclick="setOverlay('pressure')">⏲️ Pressure</button>
+  <span class="bar-title">{{ name }} · Windy.com</span>
+</div>
+
+<iframe id="windy-frame"
+  src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=in&metricTemp=°F&metricWind=kt&zoom=7&overlay=wind&product=ecmwf&level=surface&lat={{ lat }}&lng={{ lon }}&detailLat={{ lat }}&detailLng={{ lon }}"
+  allowfullscreen></iframe>
+
+<script>
+const LAT = {{ lat }}, LON = {{ lon }};
+const BASE = 'https://embed.windy.com/embed.html';
+const PARAMS = `type=map&location=coordinates&metricRain=in&metricTemp=°F&metricWind=kt&zoom=7&product=ecmwf&level=surface&lat=${LAT}&lng=${LON}&detailLat=${LAT}&detailLng=${LON}`;
+
+function setOverlay(overlay) {
+  document.getElementById('windy-frame').src = `${BASE}?${PARAMS}&overlay=${overlay}`;
+  document.querySelectorAll('.bar-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

@@ -196,6 +196,15 @@ NOAA_TIDE_STATION_IDS = {
     "matagorda_tx":   "8773146",
 }
 
+# Pre-computed lat/lon for each location (avoids NOAA API lookup for map pages)
+LOCATION_COORDS = {
+    "freeport_tx":    (28.944, -95.361),
+    "padre_island_tx": (27.065, -97.218),
+    "pensacola_fl":   (30.404, -87.212),
+    "sargent_tx":     (28.770, -95.628),
+    "matagorda_tx":   (28.690, -95.976),
+}
+
 # ── NOAA station list cache (all tide prediction stations, refreshed daily) ────
 _noaa_stations: list = []
 _noaa_stations_ts: float = 0.0
@@ -1410,12 +1419,38 @@ def _salinity_frames(region_code: str) -> list:
         _sal_cache[region_code] = (now, frames)
         return frames
 
+@app.route("/map/radar")
+def map_radar():
+    """Full-page NOAA MRMS rain radar map (Leaflet + WMS animation)."""
+    loc = request.args.get("location", "freeport_tx")
+    lat, lon = LOCATION_COORDS.get(loc, (28.944, -95.361))
+    name = LOCATION_NAMES.get(loc, loc)
+    return render_template("radar_map.html", lat=lat, lon=lon, name=name, location=loc)
+
+
+@app.route("/map/wind")
+def map_wind():
+    """Full-page Windy wind/marine conditions map."""
+    loc = request.args.get("location", "freeport_tx")
+    lat, lon = LOCATION_COORDS.get(loc, (28.944, -95.361))
+    name = LOCATION_NAMES.get(loc, loc)
+    return render_template("wind_map.html", lat=lat, lon=lon, name=name, location=loc)
+
+
 @app.route("/map/salinity")
 def map_salinity():
     """Standalone full-page salinity loop (opened in a new tab from buttons)."""
+    # Accept either ?location=key or ?id=noaa_station_id
+    loc = request.args.get("location", "").strip()
+    if loc and loc in NOAA_TIDE_STATION_IDS:
+        station_id = NOAA_TIDE_STATION_IDS[loc]
+        name = LOCATION_NAMES.get(loc, loc)
+    else:
+        station_id = request.args.get("id", "").strip()
+        name = request.args.get("name", "Station")
     return render_template("salinity_map.html",
-                           station_id=request.args.get("id", "").strip(),
-                           name=request.args.get("name", "Station"))
+                           station_id=station_id,
+                           name=name)
 
 @app.route("/api/maps/<station_id>")
 def api_maps(station_id):
