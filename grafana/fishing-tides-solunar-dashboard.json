@@ -855,7 +855,7 @@
         },
         "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
         "onInit": "",
-        "onRender": "var loc = getTemplateSrv().replace('$location');\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = htmlGraphics.querySelector('iframe');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/map/radar?location=' + encodeURIComponent(loc);\n  if (frame.src !== newSrc) frame.src = newSrc;\n}"
+        "onRender": "var loc = getTemplateSrv().replace('$location');\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = htmlNode.querySelector('iframe');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/map/radar?location=' + encodeURIComponent(loc);\n  if (frame.src !== newSrc) frame.src = newSrc;\n}"
       },
       "targets": [],
       "title": "\u26c5 Rain Radar",
@@ -886,7 +886,7 @@
         },
         "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
         "onInit": "",
-        "onRender": "var loc = getTemplateSrv().replace('$location');\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = htmlGraphics.querySelector('iframe');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/map/wind?location=' + encodeURIComponent(loc);\n  if (frame.src !== newSrc) frame.src = newSrc;\n}"
+        "onRender": "var loc = getTemplateSrv().replace('$location');\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = htmlNode.querySelector('iframe');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/map/wind?location=' + encodeURIComponent(loc);\n  if (frame.src !== newSrc) frame.src = newSrc;\n}"
       },
       "targets": [],
       "title": "\ud83c\udf2c\ufe0f Wind & Marine",
@@ -917,7 +917,7 @@
         },
         "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
         "onInit": "",
-        "onRender": "var loc = getTemplateSrv().replace('$location');\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = htmlGraphics.querySelector('iframe');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/map/salinity?location=' + encodeURIComponent(loc);\n  if (frame.src !== newSrc) frame.src = newSrc;\n}"
+        "onRender": "var loc = getTemplateSrv().replace('$location');\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = htmlNode.querySelector('iframe');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/map/salinity?location=' + encodeURIComponent(loc);\n  if (frame.src !== newSrc) frame.src = newSrc;\n}"
       },
       "targets": [],
       "title": "\ud83e\uddc2 Salinity Forecast",
@@ -1027,7 +1027,7 @@
         },
         "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
         "onInit": "",
-        "onRender": "var loc = getTemplateSrv().replace('$location');\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = htmlGraphics.querySelector('iframe');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/stats?location=' + encodeURIComponent(loc);\n  if (frame.src !== newSrc) frame.src = newSrc;\n}"
+        "onRender": "var loc = getTemplateSrv().replace('$location');\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = htmlNode.querySelector('iframe');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/stats?location=' + encodeURIComponent(loc);\n  if (frame.src !== newSrc) frame.src = newSrc;\n}"
       },
       "targets": [],
       "title": "Stats",
@@ -1074,7 +1074,7 @@
         "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
         "js": "",
         "onInitOnResize": false,
-        "onRender": "var loc = getTemplateSrv().replace('$location');\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = htmlGraphics.querySelector('iframe');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/embed?location=' + encodeURIComponent(loc);\n  if (frame.src !== newSrc) frame.src = newSrc;\n}",
+        "onRender": "var loc = getTemplateSrv().replace('$location');\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = htmlNode.querySelector('iframe');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/embed?location=' + encodeURIComponent(loc);\n  if (frame.src !== newSrc) frame.src = newSrc;\n}",
         "paneluids": [],
         "rootCSS": ""
       },
@@ -1164,7 +1164,7 @@
         "html": "<style>html,body{margin:0;padding:0;overflow:hidden;background:#0d1117}</style><iframe style=\"width:100%;height:100%;border:0\" allow=\"fullscreen\"></iframe>",
         "js": "",
         "onInitOnResize": false,
-        "onRender": "var loc = getTemplateSrv().replace('$location');\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = htmlGraphics.querySelector('iframe');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/analysis?location=' + encodeURIComponent(loc);\n  if (frame.src !== newSrc) frame.src = newSrc;\n}",
+        "onRender": "var loc = getTemplateSrv().replace('$location');\nif (!loc || loc === '$location') loc = 'freeport_tx';\nvar frame = htmlNode.querySelector('iframe');\nif (frame) {\n  var newSrc = 'http://10.0.0.13:9879/analysis?location=' + encodeURIComponent(loc);\n  if (frame.src !== newSrc) frame.src = newSrc;\n}",
         "paneluids": [],
         "rootCSS": ""
       },
@@ -1242,6 +1242,6 @@
   "timezone": "browser",
   "title": "\ud83c\udfa3 Fishing \u00b7 Tides \u00b7 Weather \u00b7 Maps",
   "uid": "fishing-tides-solunar-v1",
-  "version": 62,
+  "version": 63,
   "weekStart": ""
 }
