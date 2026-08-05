@@ -13,9 +13,10 @@ body{background:#0d1117;color:#e6edf3;padding:14px}
 .loc-btn.active{background:#1f6feb;border-color:#1f6feb;color:#fff}
 .grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px;align-items:end}
 .lbl{display:block;font-size:11px;color:#8b949e;margin-bottom:3px}
-select,input[type=number],input[type=text]{
+select,input[type=number],input[type=text],input[type=datetime-local]{
   width:100%;background:#161b22;border:1px solid #30363d;
-  color:#e6edf3;padding:6px 8px;border-radius:4px;font-size:13px}
+  color:#e6edf3;padding:6px 8px;border-radius:4px;font-size:13px;
+  color-scheme:dark}
 .radio-row{display:flex;gap:12px;padding:7px 0;font-size:13px;align-items:center}
 .c{color:#3fb950}.s{color:#f85149}
 .sub{background:#1f6feb;color:#fff;border:none;padding:8px 22px;
@@ -79,7 +80,11 @@ input[type=checkbox]{accent-color:#1f6feb;width:14px;height:14px;cursor:pointer}
   <div><label class="lbl">Weight (lb)</label><input type="number" id="weight" step="0.1" placeholder="opt."></div>
 </div>
 
-<div class="grid" style="grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:10px">
+<div class="grid" style="grid-template-columns:1.3fr 1fr 1fr 1fr 1fr;margin-bottom:10px">
+  <div>
+    <label class="lbl">Date/Time</label>
+    <input type="datetime-local" id="catch_datetime">
+  </div>
   <div>
     <label class="lbl">Spot</label>
     <input type="text" id="spot" placeholder="optional">
@@ -140,6 +145,13 @@ function setLoc(l) {
   sel.innerHTML = SPECIES[l].map(s => `<option value="${s}">${s}</option>`).join('');
 }
 
+function nowLocalDatetime() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+document.getElementById('catch_datetime').value = nowLocalDatetime();
+
 document.querySelectorAll('.loc-btn').forEach(b =>
   b.addEventListener('click', () => setLoc(b.dataset.loc))
 );
@@ -161,6 +173,8 @@ document.getElementById('sub').addEventListener('click', async () => {
   const tk = document.getElementById('tackle').value;
   const sp = document.getElementById('spot').value;
   const nt = document.getElementById('notes').value;
+  const dt = document.getElementById('catch_datetime').value;
+  if (dt) fd.append('catch_datetime', dt);
   if (sz) fd.append('size_in', sz);
   if (wt) fd.append('weight_lbs', wt);
   if (bt) fd.append('bait', bt);
@@ -181,6 +195,7 @@ document.getElementById('sub').addEventListener('click', async () => {
       document.getElementById('tackle').value = '';
       document.getElementById('spot').value   = '';
       document.getElementById('notes').value  = '';
+      document.getElementById('catch_datetime').value = nowLocalDatetime();
       loadRecent();
     } else { throw new Error(j.message || 'error'); }
   } catch(e) {
