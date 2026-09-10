@@ -1,3 +1,9 @@
+# OPTIONAL fallback for bare-metal (non-Docker) hosts.
+# The default deployment path runs the exporter as its own container via
+# docker-compose.yml — see QUICKSTART.md. Only use this unit if you specifically
+# don't want another container.
+#
+# Create a dedicated user first: sudo useradd -r -s /usr/sbin/nologin fishing-exporter
 [Unit]
 Description=Fishing & Tide Prometheus Exporter
 After=network-online.target
@@ -5,8 +11,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=root
-Group=root
+User=fishing-exporter
+Group=fishing-exporter
 WorkingDirectory=/opt/fishing_exporter
 ExecStart=/usr/bin/python3 /opt/fishing_exporter/fishing_tide_exporter.py
 Restart=on-failure

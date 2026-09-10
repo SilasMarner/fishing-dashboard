@@ -4,13 +4,11 @@ global:
 
 scrape_configs:
 
-  # Fishing & Tide Exporter — runs as systemd service on the Docker host
+  # Fishing & Tide Exporter — runs as its own container (see docker-compose.yml)
   # Metrics port: 9877  |  On-demand query port: 9878
   - job_name: fishing_exporter
     static_configs:
-      # host.docker.internal does not resolve on Linux Docker — use your host's actual IP.
-      # On Mac/Windows Docker Desktop, host.docker.internal works fine.
-      - targets: ['10.0.0.13:9877']  # change to your host IP
+      - targets: ['fishing-exporter:9877']
         labels:
           instance: fishing-host
 

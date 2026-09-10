@@ -104,18 +104,21 @@ Once a station is selected, **Wind** and **Salinity** buttons appear — in both
 ## Architecture
 
 ```
-Host (systemd)
-└── fishing_exporter          ← scrapes NOAA/NWS every 60 s, exposes Prometheus metrics
-      ports: 9877 (metrics)
-             9878 (on-demand date query for Grafana tide chart)
-
 Docker (docker-compose)
-├── prometheus                ← scrapes fishing_exporter:9877, stores 30 days
-├── fish-logger               ← Flask app: log catches, AI analysis, Grafana embed page
+├── fishing-exporter          ← scrapes NOAA/NWS every 60 s, exposes Prometheus metrics
+│     ports: 9877 (metrics), 9878 (on-demand date query for Grafana tide chart)
+├── prometheus                ← scrapes fishing-exporter:9877, stores 30 days
+│     port: 9090
+├── fish-logger                ← Flask app: log catches, AI analysis, Grafana embed page
 │     port: 9879
 └── grafana                   ← dashboard UI with tide chart, catch log embed, AI panel
       port: 3000
 ```
+
+All four services run from one `docker compose up -d` — see [`QUICKSTART.md`](QUICKSTART.md).
+(The exporter can also run as a host systemd service instead of a container — see
+`fishing_exporter/fishing_tide_exporter.service` — but that's now an optional fallback,
+not the default path.)
 
 ### Data flow
 
@@ -132,8 +135,6 @@ Docker (docker-compose)
 | Requirement | Notes |
 |---|---|
 | Docker + Docker Compose | v2.x+ |
-| Python 3.11+ | For the host-side exporter |
-| `pip install prometheus_client requests ephem` | Exporter dependencies |
 | Groq API key | For AI catch analysis (free) — get one at [console.groq.com](https://console.groq.com) |
 | Grafana plugin `frser-sqlite-datasource` | Auto-installed via `GF_INSTALL_PLUGINS` env var |
 
@@ -141,90 +142,15 @@ Docker (docker-compose)
 
 ## Quick Start
 
-### 1 — Clone and configure
+See [`QUICKSTART.md`](QUICKSTART.md) — clone, `cp .env.example .env`, `docker compose up -d`,
+import the dashboard JSON. All four services (exporter, fish-logger, Prometheus, Grafana)
+come up from one compose file; no systemd, no manual directory setup, no IP substitution
+in the dashboard JSON.
 
-```bash
-git clone https://github.com/SilasMarner/fishing-dashboard.git
-cd fishing-dashboard
-cp .env.example .env
-# Edit .env — set ANTHROPIC_API_KEY and GRAFANA_ADMIN_PASSWORD at minimum
-```
-
-### 2 — Install and start the fishing exporter (host systemd service)
-
-The exporter runs **on the Docker host** (not in a container) so it can reach external APIs without proxy complexity and expose metrics on a stable IP.
-
-```bash
-# Install Python dependencies
-pip3 install prometheus_client requests ephem
-
-# Copy exporter to a permanent location
-sudo cp fishing_exporter/fishing_tide_exporter.py /opt/fishing_exporter/
-
-# Install and enable the systemd service
-sudo cp fishing_exporter/fishing_tide_exporter.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now fishing-exporter
-
-# Verify it's running and exposing metrics
-systemctl status fishing-exporter
-curl -s http://localhost:9877/metrics | grep fishing_score
-```
-
-**The exporter exposes two ports:**
-- `9877` — Prometheus metrics (scraped every 60 s by Prometheus)
-- `9878` — On-demand date query endpoint used by the Grafana tide chart for historical dates
-
-### 3 — Create data directories
-
-```bash
-mkdir -p data prometheus/data grafana/data grafana/provisioning/datasources
-cp grafana/provisioning/datasources/fish-sqlite.yaml grafana/provisioning/datasources/
-```
-
-### 4 — Configure Prometheus to scrape the exporter
-
-Edit `prometheus/prometheus.yml` and replace `host.docker.internal:9877` with your host's actual IP address if needed (e.g. `10.0.0.13:9877`).
-
-### 5 — Start the Docker stack
-
-```bash
-docker compose up -d
-```
-
-Check that all three containers are healthy:
-
-```bash
-docker compose ps
-curl -s http://localhost:9879/healthz          # fish-logger: should return "ok"
-curl -s http://localhost:9090/-/ready          # prometheus: should return "Prometheus is Ready."
-```
-
-### 6 — Import the Grafana dashboard
-
-The dashboard JSON is included at `grafana/fishing-tides-solunar-dashboard.json`. Two placeholders must be replaced before importing:
-
-| Placeholder | Replace with |
-|---|---|
-| `YOUR_HOST_IP` | Your host's IP or hostname (e.g. `10.0.0.13`) |
-| `YOUR_LOKI_DATASOURCE_UID` | Your Grafana Loki datasource UID (find it under **Connections → Data sources → Loki → Settings**, copy the UID from the URL) — only required if you use the Loki-backed Tides panel |
-
-**Quick one-liner to patch and save a local copy:**
-
-```bash
-sed -e 's/YOUR_HOST_IP/10.0.0.13/g' \
-    -e 's/YOUR_LOKI_DATASOURCE_UID/YOUR_ACTUAL_LOKI_UID/g' \
-    grafana/fishing-tides-solunar-dashboard.json > /tmp/fishing-dashboard-import.json
-```
-
-Then import:
-
-1. Open Grafana at `http://<your-host>:3000`
-2. Log in with `admin` / the password you set in `.env`
-3. Go to **Dashboards → Import**
-4. Upload `/tmp/fishing-dashboard-import.json`
-
-> **Datasources required:** `prometheus` (Prometheus), `fish-sqlite` (frser-sqlite-datasource — auto-provisioned from `grafana/provisioning/datasources/fish-sqlite.yaml`), and optionally a Loki datasource for the tide chart panel.
+> **Datasources the dashboard needs:** `prometheus` (Prometheus), `fish-sqlite`
+> (frser-sqlite-datasource — auto-provisioned from `grafana/provisioning/datasources/fish-sqlite.yaml`),
+> and optionally a Loki datasource for the tide chart's `YOUR_LOKI_DATASOURCE_UID` panel
+> (find the UID under **Connections → Data sources → Loki → Settings**).
 
 ---
 
@@ -442,12 +368,15 @@ Make sure both containers are on the same Docker network (`monitoring`).
 Check the exporter is running and Prometheus can reach it:
 
 ```bash
-systemctl status fishing-exporter
-journalctl -u fishing-exporter -n 30
+docker compose ps fishing-exporter
+docker logs fishing-exporter --tail 30
 curl -s http://localhost:9877/metrics | grep fishing_score_now
 # Then check Prometheus targets:
 curl -s http://localhost:9090/api/v1/targets | python3 -m json.tool | grep -A5 fishing
 ```
+
+(If you're running the optional bare-metal systemd fallback instead:
+`systemctl status fishing-exporter` / `journalctl -u fishing-exporter -n 30`.)
 
 ### Grafana can't find fish_log.db
 

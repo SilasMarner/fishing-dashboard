@@ -4,24 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Wind & Marine — {{ name }}</title>
+<link rel="stylesheet" href="/static/css/app.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;background:#0d1117;color:#e6edf3;font-family:system-ui,sans-serif;overflow:hidden;display:flex;flex-direction:column}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;overflow:hidden;display:flex;flex-direction:column}
 #map{flex:1;min-height:0}
-.bottom{background:#161b22;border-top:1px solid #30363d;flex-shrink:0}
-.stats-bar{display:flex;align-items:center;gap:0;border-bottom:1px solid #21262d;overflow-x:auto}
-.stat{display:flex;flex-direction:column;align-items:center;padding:6px 10px;border-right:1px solid #21262d;flex-shrink:0}
-.stat-val{font-size:15px;font-weight:700;line-height:1;color:#e6edf3}
-.stat-lbl{font-size:10px;color:#8b949e;margin-top:2px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.bottom{background:var(--panel);border-top:1px solid var(--border);flex-shrink:0}
+.stats-bar{display:flex;align-items:center;gap:0;border-bottom:1px solid var(--border-dim);overflow-x:auto}
+.stat{display:flex;flex-direction:column;align-items:center;padding:6px 10px;border-right:1px solid var(--border-dim);flex-shrink:0}
+.stat-val{font-size:15px;font-weight:700;line-height:1;color:var(--text)}
+.stat-lbl{font-size:10px;color:var(--text-dim);margin-top:2px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
 .chart-wrap{padding:4px 8px;height:52px;position:relative;overflow:hidden}
 canvas#windChart{width:100%!important;height:44px!important}
 .chart-labels{display:flex;justify-content:space-between;padding:0 2px;font-size:9px;color:#484f58}
-.header{display:flex;align-items:center;justify-content:space-between;padding:4px 10px;background:#0d1117;border-bottom:1px solid #30363d;font-size:12px;flex-shrink:0}
-.header-title{color:#58a6ff;font-weight:600}
-.header-now{color:#8b949e;font-size:11px}
-.badge{font-size:10px;background:#21262d;border:1px solid #30363d;padding:1px 7px;border-radius:4px;color:#79c0ff}
+.header{display:flex;align-items:center;justify-content:space-between;padding:4px 10px;background:var(--bg);border-bottom:1px solid var(--border);font-size:12px;flex-shrink:0}
+.header-title{color:var(--accent-2);font-weight:600}
+.header-now{color:var(--text-dim);font-size:11px}
+.badge{font-size:10px;background:var(--border-dim);border:1px solid var(--border);padding:1px 7px;border-radius:4px;color:#79c0ff}
 /* Wind arrow marker */
 .wind-arrow{width:36px;height:36px;display:flex;align-items:center;justify-content:center}
 .leaflet-control-attribution{font-size:9px!important;opacity:.4}

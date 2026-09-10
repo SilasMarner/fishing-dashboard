@@ -1,0 +1,56 @@
+# Production overlay — for hosts that already run a shared Prometheus/Grafana/Loki
+# stack and just want fish-logger + fishing-exporter attached to it, instead of a
+# second competing Prometheus/Grafana pair.
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Set MONITORING_NETWORK to the name of your existing external Docker network
+# (the one your shared Prometheus/Grafana already run on). Then add a scrape
+# target for fishing-exporter:9877 to your existing Prometheus config, and
+# import grafana/fishing-tides-solunar-dashboard.json into your existing Grafana.
+
+services:
+
+  fishing-exporter:
+    image: fishing-exporter:latest
+    build:
+      context: ./fishing_exporter
+    restart: unless-stopped
+    environment:
+      - TZ=America/Chicago
+    networks:
+      - monitoring
+
+  fish-logger:
+    image: fish-logger:latest
+    build:
+      context: ./fish_logger
+    restart: unless-stopped
+    environment:
+      - TZ=America/Chicago
+      - DB_PATH=/data/fish_log.db
+      - PROMETHEUS_URL=${PROMETHEUS_URL:-http://prometheus:9090}
+      - EXPORTER_QUERY_URL=http://fishing-exporter:9878
+      - AI_PROVIDER=${AI_PROVIDER:-groq}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - XAI_API_KEY=${XAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - IMPORT_MODEL=${IMPORT_MODEL:-claude-opus-4-8}
+      - OCR_PROVIDER=${OCR_PROVIDER:-ocr_space}
+      - OCR_SPACE_API_KEY=${OCR_SPACE_API_KEY:-helloworld}
+      - ANALYSIS_INTERVAL_HOURS=6
+      - PORT=9879
+    ports:
+      - "9879:9879"
+    volumes:
+      - ${FISHING_DATA_DIR:-./data}:/data
+    networks:
+      - monitoring
+    depends_on:
+      - fishing-exporter
+
+networks:
+  monitoring:
+    external: true
+    name: ${MONITORING_NETWORK:-loki-promtail_monitoring}

@@ -12,6 +12,11 @@ Thanks for your interest in contributing to the Fishing Dashboard!
 
 ## Development Setup
 
+For the full stack (exporter + Prometheus + Grafana), use [`QUICKSTART.md`](QUICKSTART.md).
+
+For quick iteration on the Flask app only — no exporter/Prometheus, so live conditions
+snapshots will be empty:
+
 ```bash
 git clone https://github.com/SilasMarner/fishing-dashboard.git
 cd fishing-dashboard

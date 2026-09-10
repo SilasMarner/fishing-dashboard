@@ -4,54 +4,55 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Fish Log</title>
+<link rel="stylesheet" href="/static/css/app.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:sans-serif}
-body{background:#0d1117;color:#e6edf3;padding:14px}
+body{background:var(--bg);color:var(--text);padding:14px}
 .loc-row{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
-.loc-btn{background:#1c2128;border:1px solid #30363d;color:#8b949e;
+.loc-btn{background:var(--panel-alt);border:1px solid var(--border);color:var(--text-dim);
          padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px}
-.loc-btn.active{background:#1f6feb;border-color:#1f6feb;color:#fff}
+.loc-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px;align-items:end}
-.lbl{display:block;font-size:11px;color:#8b949e;margin-bottom:3px}
+.lbl{display:block;font-size:11px;color:var(--text-dim);margin-bottom:3px}
 select,input[type=number],input[type=text],input[type=datetime-local]{
-  width:100%;background:#161b22;border:1px solid #30363d;
-  color:#e6edf3;padding:6px 8px;border-radius:4px;font-size:13px;
+  width:100%;background:var(--panel);border:1px solid var(--border);
+  color:var(--text);padding:6px 8px;border-radius:4px;font-size:13px;
   color-scheme:dark}
 .radio-row{display:flex;gap:12px;padding:7px 0;font-size:13px;align-items:center}
-.c{color:#3fb950}.s{color:#f85149}
-.sub{background:#1f6feb;color:#fff;border:none;padding:8px 22px;
+.c{color:var(--good)}.s{color:var(--bad)}
+.sub{background:var(--accent);color:#fff;border:none;padding:8px 22px;
      border-radius:4px;cursor:pointer;font-size:14px;font-weight:600}
 .sub:disabled{opacity:.45;cursor:not-allowed}
 #msg{margin-left:12px;font-size:13px;font-weight:500}
 .note-row{margin-bottom:12px}
-hr{border:none;border-top:1px solid #30363d;margin:16px 0}
-.del-section h4{font-size:12px;color:#8b949e;margin-bottom:8px;font-weight:400}
+hr{border:none;border-top:1px solid var(--border);margin:16px 0}
+.del-section h4{font-size:12px;color:var(--text-dim);margin-bottom:8px;font-weight:400}
 .del-table{width:100%;border-collapse:collapse;font-size:12px}
-.del-table th{color:#8b949e;font-weight:400;text-align:left;padding:4px 6px;border-bottom:1px solid #30363d}
-.del-table td{padding:4px 6px;border-bottom:1px solid #21262d;vertical-align:middle}
-.del-btn{background:transparent;border:1px solid #f85149;color:#f85149;
+.del-table th{color:var(--text-dim);font-weight:400;text-align:left;padding:4px 6px;border-bottom:1px solid var(--border)}
+.del-table td{padding:4px 6px;border-bottom:1px solid var(--border-dim);vertical-align:middle}
+.del-btn{background:transparent;border:1px solid var(--bad);color:var(--bad);
          padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px}
 .del-btn:hover{background:#6e1c1c}
-.caught-y{color:#3fb950}.caught-n{color:#f85149}
+.caught-y{color:var(--good)}.caught-n{color:var(--bad)}
 /* bulk-delete toolbar */
 .bulk-bar{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
-.sel-all-btn{background:#1c2128;border:1px solid #30363d;color:#8b949e;
+.sel-all-btn{background:var(--panel-alt);border:1px solid var(--border);color:var(--text-dim);
              padding:4px 10px;border-radius:3px;cursor:pointer;font-size:12px}
-.sel-all-btn:hover{border-color:#8b949e;color:#e6edf3}
-.bulk-del-btn{background:transparent;border:1px solid #f85149;color:#f85149;
+.sel-all-btn:hover{border-color:var(--text-dim);color:var(--text)}
+.bulk-del-btn{background:transparent;border:1px solid var(--bad);color:var(--bad);
               padding:4px 12px;border-radius:3px;cursor:pointer;font-size:12px;font-weight:600}
 .bulk-del-btn:disabled{opacity:.35;cursor:not-allowed}
 .bulk-del-btn:not(:disabled):hover{background:#6e1c1c}
-.sel-count{font-size:12px;color:#8b949e}
+.sel-count{font-size:12px;color:var(--text-dim)}
 /* checkbox styling */
-input[type=checkbox]{accent-color:#1f6feb;width:14px;height:14px;cursor:pointer}
+input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer}
 .del-table th:first-child,.del-table td:first-child{width:28px;text-align:center}
 /* export bar */
 .export-bar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
-.export-lbl{font-size:12px;color:#8b949e}
-.exp-btn{background:#1c2128;border:1px solid #30363d;color:#8b949e;
+.export-lbl{font-size:12px;color:var(--text-dim)}
+.exp-btn{background:var(--panel-alt);border:1px solid var(--border);color:var(--text-dim);
          padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;text-decoration:none}
-.exp-btn:hover{border-color:#3fb950;color:#3fb950}
+.exp-btn:hover{border-color:var(--good);color:var(--good)}
 </style>
 </head>
 <body>

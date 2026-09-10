@@ -1,21 +1,36 @@
-version: "3.8"
-
 # Fishing Dashboard Stack
-# Runs: fish-logger (Flask app + AI), Prometheus (metrics), Grafana (dashboards)
+# Runs: fishing-exporter (Prometheus metrics), fish-logger (Flask app + AI),
+#       Prometheus (metrics storage), Grafana (dashboards)
 #
-# Prerequisites:
-#   1. Copy .env.example → .env and fill in your values
-#   2. Create data directories (see README.md)
-#   3. Provision Grafana datasource (grafana/provisioning/datasources/fish-sqlite.yaml)
-#   4. Run the fishing_exporter as a systemd service on the host (see README.md)
+# Quick start: see QUICKSTART.md. In short —
+#   1. cp .env.example .env and fill in your values
+#   2. docker compose up -d
+#   3. Import grafana/fishing-tides-solunar-dashboard.json into Grafana
+#
+# This is the self-contained, fresh-clone stack (its own Prometheus + Grafana).
+# To integrate with an existing Prometheus/Grafana/Loki stack instead, use
+# docker-compose.prod.yml — see its header comment.
 
 services:
 
+  # ─── Fishing & Tide Exporter ────────────────────────────────────────────────
+  # Polls NOAA/NWS every 60s, exposes Prometheus metrics (:9877) and an
+  # on-demand date-query API (:9878) used by the Grafana tide chart.
+  fishing-exporter:
+    image: fishing-exporter:latest
+    build:
+      context: ./fishing_exporter
+    restart: unless-stopped
+    environment:
+      - TZ=America/Chicago
+    ports:
+      - "9877:9877"
+      - "9878:9878"
+    networks:
+      - monitoring
+
   # ─── Fish Logger ─────────────────────────────────────────────────────────────
   # Flask app: catch logging, AI analysis, Grafana embed page
-  # NOTE: Production runs inside the loki-promtail Portainer stack (stack 27).
-  # container_name removed to avoid stomping the production container if this
-  # compose is run for dev/testing.
   fish-logger:
     image: fish-logger:latest
     build:
@@ -25,6 +40,7 @@ services:
       - TZ=America/Chicago
       - DB_PATH=/data/fish_log.db
       - PROMETHEUS_URL=http://prometheus:9090
+      - EXPORTER_QUERY_URL=http://fishing-exporter:9878
       - AI_PROVIDER=${AI_PROVIDER:-groq}
       - GROQ_API_KEY=${GROQ_API_KEY}
       - XAI_API_KEY=${XAI_API_KEY}
@@ -42,14 +58,11 @@ services:
       - ${FISHING_DATA_DIR:-./data}:/data
     networks:
       - monitoring
-      - grafana_net
     depends_on:
       - prometheus
+      - fishing-exporter
 
   # ─── Prometheus ───────────────────────────────────────────────────────────────
-  # Stores metrics from the fishing_exporter systemd service (port 9877)
-  # NOTE: Production prometheus is in the loki-promtail Portainer stack (stack 27).
-  # container_name and host port removed — dev-only; access via service name inside compose.
   prometheus:
     image: prom/prometheus:latest
     restart: unless-stopped
@@ -63,14 +76,15 @@ services:
       - --storage.tsdb.retention.size=10GB
       - --web.enable-lifecycle
       - --web.cors.origin=.*
+    ports:
+      - "9090:9090"
     networks:
       - monitoring
-      - grafana_net
+    depends_on:
+      - fishing-exporter
 
   # ─── Grafana ─────────────────────────────────────────────────────────────────
   # Dashboard UI — embeds the fish-logger /embed page in an iframe panel
-  # NOTE: Production grafana is in the loki-promtail Portainer stack (stack 27).
-  # container_name and host port removed — dev-only.
   grafana:
     image: grafana/grafana:latest
     restart: unless-stopped
@@ -89,6 +103,8 @@ services:
       - ${GRAFANA_PROVISIONING_DIR:-./grafana/provisioning}:/etc/grafana/provisioning
       # Fish log SQLite DB — mounted read-only so Grafana can query it
       - ${FISHING_DATA_DIR:-./data}:/fishing:ro
+    ports:
+      - "3000:3000"
     networks:
       - monitoring
     depends_on:
@@ -97,8 +113,3 @@ services:
 networks:
   monitoring:
     driver: bridge
-    driver_opts:
-      com.docker.network.driver.mtu: "9000"
-  grafana_net:
-    external: true
-    name: loki-promtail_monitoring

@@ -4,20 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Rain Radar — {{ name }}</title>
+<link rel="stylesheet" href="/static/css/app.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;background:#0d1117;color:#e6edf3;font-family:system-ui,sans-serif;overflow:hidden}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;overflow:hidden}
 #map{height:calc(100% - 48px)}
-.bar{display:flex;align-items:center;gap:8px;padding:0 12px;background:#161b22;border-top:1px solid #30363d;height:48px;flex-shrink:0}
-.bar-btn{background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:4px 12px;border-radius:5px;cursor:pointer;font-size:12px;white-space:nowrap;transition:background .15s}
-.bar-btn:hover{background:#30363d}
-.bar-btn.active{background:#1f6feb;border-color:#1f6feb}
-.ts-label{flex:1;text-align:center;font-size:12px;color:#8b949e;font-variant-numeric:tabular-nums}
-.badge{font-size:11px;background:#21262d;border:1px solid #30363d;color:#58a6ff;padding:2px 8px;border-radius:4px;white-space:nowrap}
-.legend{position:absolute;bottom:56px;right:8px;z-index:1000;background:rgba(22,27,34,.88);border:1px solid #30363d;border-radius:6px;padding:6px 10px;font-size:11px;line-height:1.6}
-.legend-title{color:#8b949e;font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.bar{display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--panel);border-top:1px solid var(--border);height:48px;flex-shrink:0}
+.bar-btn{background:var(--border-dim);border:1px solid var(--border);color:var(--text);padding:4px 12px;border-radius:5px;cursor:pointer;font-size:12px;white-space:nowrap;transition:background .15s}
+.bar-btn:hover{background:var(--border)}
+.bar-btn.active{background:var(--accent);border-color:var(--accent)}
+.ts-label{flex:1;text-align:center;font-size:12px;color:var(--text-dim);font-variant-numeric:tabular-nums}
+.badge{font-size:11px;background:var(--border-dim);border:1px solid var(--border);color:var(--accent-2);padding:2px 8px;border-radius:4px;white-space:nowrap}
+.legend{position:absolute;bottom:56px;right:8px;z-index:1000;background:rgba(22,27,34,.88);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:11px;line-height:1.6}
+.legend-title{color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
 .legend-row{display:flex;align-items:center;gap:6px}
 .legend-swatch{width:14px;height:10px;border-radius:2px;flex-shrink:0}
 .leaflet-control-attribution{font-size:9px!important;opacity:.5}
