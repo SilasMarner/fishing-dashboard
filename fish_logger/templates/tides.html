@@ -22,6 +22,12 @@
           {% endfor %}
         </div>
 
+        <div id="favoritesSection" class="d-none">
+          <hr class="border-secondary my-3">
+          <small class="text-muted d-block mb-2"><i class="bi bi-star-fill text-warning"></i> Favorites</small>
+          <div class="d-flex flex-column gap-2 mb-1" id="favoritesList"></div>
+        </div>
+
         <hr class="border-secondary my-3">
 
         <small class="text-muted d-block mb-2">Search all NOAA stations</small>
@@ -60,6 +66,9 @@
       <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span><i class="bi bi-arrow-down-up"></i> Tide Predictions — <span id="stationLabel">select a station</span></span>
         <div class="d-flex align-items-center gap-2">
+          <button id="favStarBtn" class="btn btn-sm btn-outline-warning d-none" title="Add to favorites">
+            <i class="bi bi-star"></i>
+          </button>
           <button id="windBtn" class="btn btn-sm btn-outline-info" disabled
                   title="Live wind map"><i class="bi bi-wind"></i> Wind</button>
           <button id="salBtn" class="btn btn-sm btn-outline-info" disabled
@@ -222,7 +231,7 @@ let tideChartInst     = null;
 // ── Quick-station buttons ─────────────────────────────────────────────────────
 document.querySelectorAll('.quick-station').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.quick-station').forEach(b => b.classList.remove('btn-info','text-dark'));
+    document.querySelectorAll('.quick-station, .favorite-station-btn').forEach(b => b.classList.remove('btn-info','text-dark'));
     btn.classList.add('btn-info','text-dark');
     document.getElementById('stationSearch').value = '';
     selectStation(btn.dataset.id, btn.dataset.name, btn.dataset.lockey || null);
@@ -264,26 +273,126 @@ function showDropdown(stations) {
       const label = s.name + (s.state ? ', ' + s.state : '');
       const coord = (s.lat && s.lng)
         ? `${parseFloat(s.lat).toFixed(2)}°, ${parseFloat(s.lng).toFixed(2)}°` : '';
-      return `<div class="station-result px-3 py-2"
+      const fav = isFavorite(s.id);
+      return `<div class="station-result px-3 py-2 d-flex align-items-center justify-content-between"
                    style="cursor:pointer;border-bottom:1px solid #30363d"
-                   data-id="${s.id}" data-name="${label}">
-                <div class="small text-white">${label}</div>
-                <div class="text-muted" style="font-size:.7rem">ID: ${s.id}${coord ? ' · ' + coord : ''}</div>
+                   data-id="${s.id}" data-name="${label}" data-lat="${s.lat||''}" data-lng="${s.lng||''}">
+                <div>
+                  <div class="small text-white">${label}</div>
+                  <div class="text-muted" style="font-size:.7rem">ID: ${s.id}${coord ? ' · ' + coord : ''}</div>
+                </div>
+                <button class="btn btn-sm favorite-star-btn ${fav ? 'text-warning' : 'text-muted'}"
+                        style="background:none;border:none;padding:.15rem .4rem"
+                        data-id="${s.id}" title="${fav ? 'Remove from favorites' : 'Add to favorites'}">
+                  <i class="bi ${fav ? 'bi-star-fill' : 'bi-star'}"></i>
+                </button>
               </div>`;
     }).join('');
     dropdownEl.querySelectorAll('.station-result').forEach(el => {
       el.addEventListener('click', () => {
         searchEl.value = el.dataset.name;
         hideDropdown(); statusEl.textContent = '';
-        document.querySelectorAll('.quick-station').forEach(b => b.classList.remove('btn-info','text-dark'));
+        document.querySelectorAll('.quick-station, .favorite-station-btn').forEach(b => b.classList.remove('btn-info','text-dark'));
         selectStation(el.dataset.id, el.dataset.name, null);
       });
       el.addEventListener('mouseenter', () => el.style.background = '#2d333b');
       el.addEventListener('mouseleave', () => el.style.background = '');
     });
+    dropdownEl.querySelectorAll('.favorite-star-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const row = btn.closest('.station-result');
+        toggleFavorite({id: row.dataset.id, name: row.dataset.name, lat: row.dataset.lat || null, lng: row.dataset.lng || null});
+        const fav = isFavorite(row.dataset.id);
+        btn.classList.toggle('text-warning', fav);
+        btn.classList.toggle('text-muted', !fav);
+        btn.querySelector('i').className = fav ? 'bi bi-star-fill' : 'bi bi-star';
+        btn.title = fav ? 'Remove from favorites' : 'Add to favorites';
+      });
+    });
   }
   dropdownEl.classList.remove('d-none');
 }
+
+// ── Favorites (persisted in localStorage, mirrors the OpenTides mobile app) ───
+const FAVORITES_KEY = 'fishing_dashboard_tide_favorites';
+
+function loadFavorites() {
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) { return []; }
+}
+
+function saveFavorites(list) {
+  try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(list)); } catch (e) {}
+}
+
+function isFavorite(id) {
+  return loadFavorites().some(f => String(f.id) === String(id));
+}
+
+function toggleFavorite(station) {
+  const list = loadFavorites();
+  const idx = list.findIndex(f => String(f.id) === String(station.id));
+  if (idx >= 0) {
+    list.splice(idx, 1);
+  } else {
+    list.push(station);
+  }
+  saveFavorites(list);
+  renderFavorites();
+  updateFavStarBtn();
+}
+
+function renderFavorites() {
+  const favorites = loadFavorites();
+  const section = document.getElementById('favoritesSection');
+  const list = document.getElementById('favoritesList');
+  if (!favorites.length) { section.classList.add('d-none'); list.innerHTML = ''; return; }
+  section.classList.remove('d-none');
+  list.innerHTML = favorites.map(f => `
+    <div class="d-flex gap-1">
+      <button class="btn btn-sm btn-outline-secondary text-start flex-grow-1 favorite-station-btn"
+              data-id="${f.id}" data-name="${f.name}" data-lat="${f.lat||''}" data-lng="${f.lng||''}">
+        <i class="bi bi-star-fill text-warning me-1" style="font-size:.7rem"></i>${f.name}
+        <span class="text-muted float-end" style="font-size:.7rem">ID ${f.id}</span>
+      </button>
+      <button class="btn btn-sm btn-outline-secondary favorite-remove-btn" data-id="${f.id}" title="Remove from favorites">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>`).join('');
+  list.querySelectorAll('.favorite-station-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.quick-station, .favorite-station-btn').forEach(b => b.classList.remove('btn-info','text-dark'));
+      btn.classList.add('btn-info','text-dark');
+      searchEl.value = '';
+      selectStation(btn.dataset.id, btn.dataset.name, null);
+    });
+  });
+  list.querySelectorAll('.favorite-remove-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      toggleFavorite({id: btn.dataset.id});
+    });
+  });
+}
+
+function updateFavStarBtn() {
+  const btn = document.getElementById('favStarBtn');
+  if (!activeStationId) { btn.classList.add('d-none'); return; }
+  btn.classList.remove('d-none');
+  const fav = isFavorite(activeStationId);
+  btn.innerHTML = fav ? '<i class="bi bi-star-fill"></i>' : '<i class="bi bi-star"></i>';
+  btn.title = fav ? 'Remove from favorites' : 'Add to favorites';
+  btn.classList.toggle('btn-warning', fav);
+  btn.classList.toggle('btn-outline-warning', !fav);
+}
+
+document.getElementById('favStarBtn').addEventListener('click', () => {
+  if (!activeStationId) return;
+  toggleFavorite({id: activeStationId, name: activeStationName, lat: activeLat, lng: activeLon});
+});
 
 function hideDropdown() { dropdownEl.classList.add('d-none'); }
 
@@ -311,6 +420,7 @@ function selectStation(id, name, locKey) {
   fetchTides(id, name);
   loadMaps(id);
   loadWeekForecast(id);
+  updateFavStarBtn();
 }
 
 // ── Tide predictions (hilo table + hourly chart) ──────────────────────────────
@@ -721,6 +831,7 @@ document.getElementById('qlSubmit').addEventListener('click', async () => {
 });
 
 // ── Auto-load from URL params ─────────────────────────────────────────────────
+renderFavorites();
 (function() {
   const params = new URLSearchParams(window.location.search);
   const id   = params.get('id');
