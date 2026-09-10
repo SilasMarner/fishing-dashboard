@@ -25,9 +25,9 @@ This skill is built to be launched and left alone. Run start-to-finish without s
 | Thing | Value |
 |------|------|
 | Repo | `/root/git/fishing-dashboard` (remotes: `origin` GitHub + `gitea` http://10.0.0.54:3000) |
-| App | `fish-logger` container, host **http://10.0.0.13:9879** (Portainer stack 27, project `loki-promtail`) |
-| Exporter | `fishing-exporter` **systemd** service → metrics :9877, query API :9878 (host 10.0.0.13) |
-| Prometheus | http://10.0.0.13:9090 (scrapes exporter via bridge gateway 172.18.0.1:9877) |
+| App | `fishing-dashboard-fish-logger-1` **container**, host **http://10.0.0.13:9879** — run from this repo's `docker-compose.prod.yml`, attached to the shared `loki-promtail_monitoring` network. NOT part of Portainer stack 27 anymore (removed 2026-09-10). |
+| Exporter | `fishing-dashboard-fishing-exporter-1` **container** (network alias `fishing-exporter`) → metrics :9877, query API :9878. The old host systemd service is retired/removed — don't reinstate it. |
+| Prometheus | http://10.0.0.13:9090 (shared instance in Portainer stack 27; scrapes the exporter container by name `fishing-exporter:9877`, config at `/u01/docker/monitoring/config/prometheus/prometheus.yml`) |
 | Grafana | http://10.0.0.13:3000, login `admin` / `changeme`, dashboard uid `fishing-tides-solunar-v1` |
 
 ## Step 1 — run the smoke test
@@ -43,24 +43,32 @@ It covers: exporter metrics + query API, the Prometheus scrape target, every fis
 
 Map a failed check to its cause:
 
-- **exporter /metrics or query API down** → the systemd service died or was replaced by a stray manual process. Check `systemctl status fishing-exporter` and `ss -ltnp | grep -E ':9877|:9878'`. If a manual `python3 .../fishing_tide_exporter.py` holds the port instead of systemd, kill it and `systemctl start fishing-exporter` (the unit is the durable path; prod source at `/opt/fishing_exporter/` should match the repo).
-- **prometheus target down** → exporter unreachable from the bridge network, or Prometheus down. `docker ps`, `curl :9090/api/v1/targets`.
-- **fish-logger page/api fails** → `docker logs fish-logger --tail 50`. Compare the running container to the repo: `docker exec fish-logger sha256sum /app/app.py` vs `sha256sum fish_logger/app.py`.
+- **exporter /metrics or query API down** → check `docker ps -f name=fishing-dashboard-fishing-exporter-1` and `docker logs fishing-dashboard-fishing-exporter-1 --tail 50`. Restart with `cd /root/git/fishing-dashboard && MONITORING_NETWORK=loki-promtail_monitoring docker compose -f docker-compose.prod.yml up -d fishing-exporter`. There is no host systemd fallback in normal operation — don't reinstate `fishing-exporter.service`.
+- **prometheus target down** → exporter container down, or not reachable by name `fishing-exporter` on `loki-promtail_monitoring`. `docker ps`, `curl :9090/api/v1/targets`, `docker network inspect loki-promtail_monitoring`.
+- **fish-logger page/api fails** → `docker logs fishing-dashboard-fish-logger-1 --tail 50`. Compare the running container to the repo: `docker exec fishing-dashboard-fish-logger-1 sha256sum /app/app.py` vs `sha256sum fish_logger/app.py`.
 - **live data path fails** (tides/salinity/weather) → usually upstream (NOAA/NWS) flaking or a format change in the NGOFS2 option-file parser (`_salinity_frames` regex in `app.py`). Re-run once; if it's a real format change, fix the parser.
 - **grafana dashboard drift** → the live dashboard was edited but the repo `grafana/fishing-tides-solunar-dashboard.json` backup wasn't updated (or vice-versa). Reconcile: pull the live JSON, diff, and update the repo backup to match (or push the repo version live), per the dashboard edit method in CLAUDE/memory.
 
 ## Step 3 — fix, redeploy, re-verify (only if something failed)
 
-Apply fixes automatically. For **app.py / template / Dockerfile** changes, rebuild and redeploy — **always pass `--env-file` or the container loses `GROQ_API_KEY`/`AI_PROVIDER`/`OCR_PROVIDER`** and the AI + free-OCR paths silently break:
+Apply fixes automatically. For **app.py / template / Dockerfile** changes, rebuild and redeploy via this repo's own `docker-compose.prod.yml` — **the repo's `.env` is what supplies `GROQ_API_KEY`/`AI_PROVIDER`/`OCR_PROVIDER`/`ANTHROPIC_API_KEY`**, so always run compose from `/root/git/fishing-dashboard` (it auto-loads `.env` from cwd):
 
 ```bash
 cd /root/git/fishing-dashboard
 docker build -t fish-logger:latest ./fish_logger
-docker compose -f /u01/docker/Portainer/compose/27/docker-compose.yml --project-name loki-promtail \
-  --env-file /u01/docker/Portainer/compose/27/stack.env up -d fish-logger
+MONITORING_NETWORK=loki-promtail_monitoring FISHING_DATA_DIR=/u01/docker/monitoring/config/fishing \
+  docker compose -f docker-compose.prod.yml up -d fish-logger --force-recreate
 ```
 
-After redeploy, confirm env survived: `docker exec fish-logger env | grep -E 'AI_PROVIDER|OCR_PROVIDER|GROQ_API_KEY'`, then **re-run `scripts/qa_smoke.py`** until it's green.
+For **fishing_tide_exporter.py** changes, same pattern with the exporter service:
+
+```bash
+docker build -t fishing-exporter:latest ./fishing_exporter
+MONITORING_NETWORK=loki-promtail_monitoring \
+  docker compose -f docker-compose.prod.yml up -d fishing-exporter --force-recreate
+```
+
+After redeploy, confirm env survived: `docker exec fishing-dashboard-fish-logger-1 env | grep -E 'AI_PROVIDER|OCR_PROVIDER|GROQ_API_KEY'`, then **re-run `scripts/qa_smoke.py`** until it's green.
 
 ## Step 4 — commit, push, report
 
@@ -78,5 +86,5 @@ End with one report: per-section ✅/⚠️ (which of the 22 checks passed, what
 ## Notes / gotchas
 
 - The Grafana dashboard is stored in **Grafana's DB, not file-provisioned**; the repo JSON is a manually-synced backup. The smoke test's drift check is your guard against the two diverging.
-- The fish-logger container **cannot reach the host exporter** (`localhost:9878`), so imported historical conditions are mostly NULL by design — not a bug.
+- Since the exporter became a container (2026-09-10) on the same `monitoring`/`loki-promtail_monitoring` network, fish-logger reaches it at `http://fishing-exporter:9878` (`EXPORTER_QUERY_URL` env var) — this now works, unlike the old host-systemd topology where it couldn't.
 - `gitea` remote token lives in the configured remote URL; `git push gitea main` just works from this repo.
