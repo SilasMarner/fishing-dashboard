@@ -2,6 +2,9 @@
 
 A self-hosted fishing intelligence stack that combines real-time NOAA tide predictions, NWS weather, solunar tables, and AI-powered catch analysis — all displayed in Grafana.
 
+**New here?** [`docs/HOWTO.md`](docs/HOWTO.md) is a plain-language, no-assumptions walkthrough.
+Already comfortable with Docker/the command line? Jump to [`QUICKSTART.md`](QUICKSTART.md).
+
 ---
 
 ## Screenshots
@@ -88,7 +91,7 @@ The `/tides` page at `http://<host>:9879/tides` provides the same functionality 
 
 ### Wind & Salinity Maps
 
-Once a station is selected, **Wind** and **Salinity** buttons appear — in both the Grafana *Station Tide Lookup* panel (opens in a new tab) and on the `/tides` page (opens in an in-page modal). Both are self-hosted — no third-party map API key needed.
+Once a station is selected, **Wind** and **Salinity** buttons appear — in both the Grafana *Station Tide Lookup* panel (opens in a new tab) and on the `/tides` page (opens in an in-page modal). Both are fully self-hosted — no third-party map API key needed (the maps used to embed Windy and CARTO's free basemap tiles, both of which now require an API key/account; replaced with Open-Meteo + Esri's free ArcGIS Online basemap, neither of which needs a key).
 
 ![Wind & Salinity buttons on the Tides page](docs/screenshots/tides_wind_salinity_buttons.png)
 
@@ -96,8 +99,12 @@ Once a station is selected, **Wind** and **Salinity** buttons appear — in both
 |---|---|
 | ![Wind map](docs/screenshots/wind_map_windy.png) | ![Salinity map](docs/screenshots/salinity_map_loop.png) |
 
-- **Wind** opens `/map/wind` — a Leaflet map (CARTO dark basemap) with a wind-direction arrow and a Chart.js forecast strip, all sourced from **Open-Meteo** (no key required). Accepts `?location=<tracked key>` for the 5 favorite stations or `?lat=&lon=&name=` for any arbitrary station.
+- **Wind** opens `/map/wind` — a Leaflet map (Esri "World Dark Gray" basemap) with a wind-direction arrow and a Chart.js forecast strip, all sourced from **Open-Meteo** (no key required). Accepts `?location=<tracked key>` for the 5 favorite stations or `?lat=&lon=&name=` for any arbitrary station.
 - **Salinity** opens an animated **NOAA NGOFS2** surface-salinity forecast loop (play/pause + scrub, ~48 h ahead) for the Gulf bay nearest the station. Stations outside the Gulf get a coverage notice. Served via `GET /api/maps/<station_id>` (resolves coords, proxies the NGOFS2 frame list) and the standalone `/map/salinity` page.
+
+### Favorites
+
+Both the `/tides` page and the Grafana *Station Tide Lookup* panel let you star any searched station — a ⭐ list of favorites then sits above the search box for one-click access, no need to re-search. Favorites are saved in the browser (`localStorage`), so they persist across visits but are per-browser, not synced to an account. Because the Grafana panel and `/tides` run on different origins (`:3000` vs `:9879`), each keeps its own separate favorites list.
 
 ---
 
@@ -115,15 +122,21 @@ Docker (docker-compose)
       port: 3000
 ```
 
-All four services run from one `docker compose up -d` — see [`QUICKSTART.md`](QUICKSTART.md).
+All four services run from one `docker compose up -d` — see [`QUICKSTART.md`](QUICKSTART.md),
+or [`docs/HOWTO.md`](docs/HOWTO.md) for a plainer-language walkthrough if you're new to Docker.
 (The exporter can also run as a host systemd service instead of a container — see
 `fishing_exporter/fishing_tide_exporter.service` — but that's now an optional fallback,
 not the default path.)
 
+Ports **9877/9878** (exporter), **9879** (fish-logger), **9090** (Prometheus), and **3000**
+(Grafana) all need to be reachable from whatever browser you're using — not just between
+containers — since the Tides chart, wind/salinity maps, and catch-log form are all iframed
+or fetched directly by the browser, not proxied through Grafana's backend.
+
 ### Data flow
 
 1. `fishing_exporter` fetches tides, weather, solunar, moon phase every 60 s per location and exposes them as Prometheus gauges.
-2. Grafana's `gapit-htmlgraphics-panel` queries Prometheus (via `/api/datasources/proxy`) to render the interactive tide chart.
+2. Grafana's `gapit-htmlgraphics-panel` (the interactive Tides chart) queries Prometheus **directly from the browser** at `http://<host>:9090` (not through Grafana's own datasource proxy — that legacy proxy route 404s on current Grafana versions). Prometheus has `--web.cors.origin=.*` set specifically for this, so port **9090 must be reachable from whatever browser is viewing the dashboard**, not just from inside the Docker network. The native stat/gauge panels (Fishing Score, Water Level, etc.) go through Grafana's normal Prometheus datasource instead, which doesn't have this requirement.
 3. When you log a catch via the Grafana-embedded form, `fish-logger` simultaneously snapshots all current Prometheus metrics and stores them alongside the catch in `fish_log.db`.
 4. The AI analysis scheduler runs every N hours, sends the last 300 catches + conditions to Claude, and saves the report to `fish_log.db`.
 5. Grafana's `frser-sqlite-datasource` plugin queries `fish_log.db` directly for the catch history table.

@@ -6,11 +6,18 @@ The **Fishing Tides & Solunar Dashboard** has these sections:
 
 | Panel | Type | Description |
 |---|---|---|
-| Tides (top) | `gapit-htmlgraphics-panel` | Interactive tide chart with location switcher, date picker, weather strip, barometer, fishing score |
+| Station Tide Lookup | `gapit-htmlgraphics-panel` | Search any of 3,450 NOAA stations, with favorites — sits right under the location switcher so it's visible without scrolling |
+| Tides | `gapit-htmlgraphics-panel` | Interactive tide chart for the 5 tracked stations, with date picker, weather strip, barometer, fishing score |
 | Fish Log | iframe → `fish-logger:9879/embed` | In-Grafana catch logging form with bulk delete |
 | Recent Catches | SQLite query | Table of last catches from fish_log.db |
 | AI Analysis | iframe → `fish-logger:9879/analysis` | AI-generated pattern analysis |
 | Per-location rows | Stat/gauge panels | Score, tide height, moon phase, solunar windows, sunrise/sunset for each location |
+
+> Both `gapit-htmlgraphics-panel` panels above fetch live data straight from the browser —
+> the Tides chart queries Prometheus directly at `http://<host>:9090` (not through Grafana's
+> backend), and both query the exporter's on-demand endpoint at `http://<host>:9878`. Make
+> sure ports 9090 and 9878 are reachable from whatever machine is viewing the dashboard, not
+> just between containers.
 
 ---
 
@@ -71,6 +78,11 @@ datasources:
     url: http://prometheus:9090
     editable: true
 ```
+
+This datasource (container-to-container, `access: proxy`) is what the native stat/gauge
+panels use. The interactive Tides chart panel is different — it bypasses this datasource
+entirely and fetches straight from the browser at `http://<host>:9090`, so Prometheus's
+port 9090 needs to be published and reachable from your browser too, not just from Grafana.
 
 ---
 

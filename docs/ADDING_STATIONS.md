@@ -150,24 +150,27 @@ The first station in the `features` array is the closest. Use its `stationIdenti
 
 ## After Adding a Station
 
-### 1 — Restart the exporter
+### 1 — Rebuild and redeploy both containers
+
+Both `STATIONS` (exporter) and `LOCATION_NAMES`/`SPECIES` (fish-logger) live in code baked
+into their respective Docker images, so both need rebuilding:
 
 ```bash
-sudo systemctl restart fishing-exporter
-# Verify the new location appears in metrics:
+cd fishing-dashboard
+docker build -t fishing-exporter:latest ./fishing_exporter
+docker build -t fish-logger:latest ./fish_logger
+docker compose up -d --force-recreate fishing-exporter fish-logger
+# (if you're on docker-compose.prod.yml instead, pass -f docker-compose.prod.yml
+# and the MONITORING_NETWORK / FISHING_DATA_DIR env vars your deployment uses)
+```
+
+Wait ~60 seconds for the exporter's first scrape cycle, then verify:
+
+```bash
 curl -s http://localhost:9877/metrics | grep my_new_location
 ```
 
-Wait ~60 seconds for the first scrape cycle to complete.
-
-### 2 — Rebuild and restart fish-logger
-
-```bash
-docker build -t fish-logger:latest ./fish_logger
-docker compose up -d fish-logger
-```
-
-### 3 — Verify metrics in Prometheus
+### 2 — Verify metrics in Prometheus
 
 Open `http://<host>:9090/graph` and query:
 
@@ -175,28 +178,21 @@ Open `http://<host>:9090/graph` and query:
 fishing_score_now{location="my_new_location"}
 ```
 
-### 4 — Add to Grafana
+### 3 — Add to Grafana
 
-The Grafana tide panel (`gapit-htmlgraphics-panel`) has a `LOCS` array in its `onRender` JavaScript. Add the new location there:
+The 5-station switcher at the top of the dashboard is a Grafana **dashboard variable**
+named `location`, not anything hardcoded in a panel. In Grafana:
 
-```javascript
-const LOCS = [
-  { id:'freeport_tx',      label:'Freeport TX' },
-  { id:'padre_island_tx',  label:'N Padre Island TX' },
-  { id:'pensacola_fl',     label:'Pensacola FL' },
-  { id:'sargent_tx',       label:'Sargent TX' },
-  { id:'matagorda_tx',     label:'Matagorda TX' },
-  { id:'my_new_location',  label:'My Location TX' },   // ← add this
-];
-```
+1. Dashboard settings (⚙️) → **Variables** → `location`
+2. It's a **Custom** variable with a comma-separated `label : value` list, e.g.:
+   ```
+   Freeport TX : freeport_tx,N Padre Island TX : padre_island_tx,Pensacola FL : pensacola_fl,Sargent TX : sargent_tx,Matagorda TX : matagorda_tx
+   ```
+3. Add your new location to that list: `...,My Location TX : my_new_location`
+4. **Apply**, then **Save dashboard**
 
-Also add a button to the panel HTML:
-
-```html
-<button class="loc-btn" id="btn-my_new_location">My Location TX</button>
-```
-
-The `id` attribute must match `"btn-" + loc.id`.
+If you're editing the JSON directly instead (e.g. to keep `grafana/fishing-tides-solunar-dashboard.json`
+in sync), the same list lives at `templating.list[0].query` in that file.
 
 ---
 

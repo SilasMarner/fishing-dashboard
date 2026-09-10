@@ -51,6 +51,7 @@ JSON into your existing Grafana.
 
 ## Next steps
 
+- New to Docker or self-hosting? [`docs/HOWTO.md`](docs/HOWTO.md) walks through all of the above in plain language.
 - Full feature tour, API reference, and troubleshooting: [`README.md`](README.md)
 - Adding a new fishing location: [`docs/ADDING_STATIONS.md`](docs/ADDING_STATIONS.md)
 - Grafana plugin details: [`docs/GRAFANA_SETUP.md`](docs/GRAFANA_SETUP.md)
