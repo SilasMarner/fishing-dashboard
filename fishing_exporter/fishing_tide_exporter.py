@@ -702,8 +702,9 @@ def build_date_response(location, target_date):
     sol           = compute_solunar(cfg["lat"], cfg["lon"], cfg["tz"], target_date)
     score, slabel = compute_fishing_score(sol, tides, target_date)
     weather       = fetch_weather_for_date(cfg, target_date)
-    water_temp    = fetch_noaa_sensor(cfg["id"], "water_temperature") if target_date == date.today() else None
-    salinity      = fetch_noaa_sensor(cfg["id"], "salinity")          if target_date == date.today() else None
+    sensor_id     = cfg.get("water_level_id", cfg["id"])
+    water_temp    = fetch_noaa_sensor(sensor_id, "water_temperature") if target_date == date.today() else None
+    salinity      = fetch_noaa_sensor(sensor_id, "salinity")          if target_date == date.today() else None
 
     highs = [t for t in tides if t.get("type", "").upper() == "H"]
     lows  = [t for t in tides if t.get("type", "").upper() == "L"]
@@ -815,8 +816,11 @@ def collect():
             water_level_ft.labels(label).set(wl)
 
         # NOAA station sensor observations (water temp + salinity where available)
-        wt = fetch_noaa_sensor(cfg["id"], "water_temperature")
-        sal = fetch_noaa_sensor(cfg["id"], "salinity")
+        # Use water_level_id, not id — for stations like Freeport the tide-prediction
+        # station (id) has no physical sensors; the water-level gauge station does.
+        sensor_id = cfg.get("water_level_id", cfg["id"])
+        wt = fetch_noaa_sensor(sensor_id, "water_temperature")
+        sal = fetch_noaa_sensor(sensor_id, "salinity")
         if wt  is not None: noaa_water_temp_f.labels(label).set(wt)
         if sal is not None: noaa_salinity_ppt.labels(label).set(sal)
         log.info(f"  {cfg['name']} NOAA sensors: water_temp={wt}F salinity={sal}ppt")

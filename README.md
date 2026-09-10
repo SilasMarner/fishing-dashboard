@@ -88,15 +88,15 @@ The `/tides` page at `http://<host>:9879/tides` provides the same functionality 
 
 ### Wind & Salinity Maps
 
-Once a station is selected, **Wind** and **Salinity** buttons appear — in both the Grafana *Station Tide Lookup* panel and on the `/tides` page. They open the maps in a new tab, so they add no clutter to the dashboard.
+Once a station is selected, **Wind** and **Salinity** buttons appear — in both the Grafana *Station Tide Lookup* panel (opens in a new tab) and on the `/tides` page (opens in an in-page modal). Both are self-hosted — no third-party map API key needed.
 
 ![Wind & Salinity buttons on the Tides page](docs/screenshots/tides_wind_salinity_buttons.png)
 
-| Wind map (Windy) | Salinity forecast loop (NOAA NGOFS2) |
+| Wind & marine map | Salinity forecast loop (NOAA NGOFS2) |
 |---|---|
 | ![Wind map](docs/screenshots/wind_map_windy.png) | ![Salinity map](docs/screenshots/salinity_map_loop.png) |
 
-- **Wind** opens an interactive [Windy](https://windy.com) map centered on the station — wind, gusts, and weather overlays with a forecast timeline.
+- **Wind** opens `/map/wind` — a Leaflet map (CARTO dark basemap) with a wind-direction arrow and a Chart.js forecast strip, all sourced from **Open-Meteo** (no key required). Accepts `?location=<tracked key>` for the 5 favorite stations or `?lat=&lon=&name=` for any arbitrary station.
 - **Salinity** opens an animated **NOAA NGOFS2** surface-salinity forecast loop (play/pause + scrub, ~48 h ahead) for the Gulf bay nearest the station. Stations outside the Gulf get a coverage notice. Served via `GET /api/maps/<station_id>` (resolves coords, proxies the NGOFS2 frame list) and the standalone `/map/salinity` page.
 
 ---

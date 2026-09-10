@@ -1430,11 +1430,27 @@ def map_radar():
 
 @app.route("/map/wind")
 def map_wind():
-    """Full-page Windy wind/marine conditions map."""
-    loc = request.args.get("location", "freeport_tx")
-    lat, lon = LOCATION_COORDS.get(loc, (28.944, -95.361))
-    name = LOCATION_NAMES.get(loc, loc)
-    return render_template("wind_map.html", lat=lat, lon=lon, name=name, location=loc)
+    """Full-page wind/marine conditions map (Leaflet + Open-Meteo, no API key needed).
+
+    Accepts either ?location=<tracked key> (the 5 favorite stations) or
+    ?lat=&lon=&name= for any arbitrary NOAA station (e.g. from /tides search).
+    """
+    loc = request.args.get("location", "").strip()
+    if loc and loc in LOCATION_COORDS:
+        lat, lon = LOCATION_COORDS[loc]
+        name = LOCATION_NAMES.get(loc, loc)
+    elif request.args.get("lat") and request.args.get("lon"):
+        try:
+            lat = float(request.args["lat"])
+            lon = float(request.args["lon"])
+        except ValueError:
+            lat, lon = 28.944, -95.361
+        name = request.args.get("name", "Station").strip() or "Station"
+    else:
+        loc = "freeport_tx"
+        lat, lon = LOCATION_COORDS.get(loc, (28.944, -95.361))
+        name = LOCATION_NAMES.get(loc, loc)
+    return render_template("wind_map.html", lat=lat, lon=lon, name=name, location=loc or "custom")
 
 
 @app.route("/map/salinity")
