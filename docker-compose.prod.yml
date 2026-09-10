@@ -19,6 +19,9 @@ services:
     restart: unless-stopped
     environment:
       - TZ=America/Chicago
+    ports:
+      - "9877:9877"
+      - "9878:9878"
     networks:
       - monitoring
 
