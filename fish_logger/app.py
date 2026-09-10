@@ -1296,7 +1296,7 @@ def api_import_commit():
 @app.route("/tides")
 def tides():
     today = datetime.now(tz=APP_TZ).strftime("%Y-%m-%d")
-    return render_template("tides.html", locations=LOCATION_NAMES,
+    return render_template("tides.html", locations=LOCATION_NAMES, species=SPECIES,
                            station_ids=NOAA_TIDE_STATION_IDS, today=today)
 
 @app.route("/api/stations/search")
