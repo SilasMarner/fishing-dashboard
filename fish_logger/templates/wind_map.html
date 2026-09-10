@@ -59,8 +59,11 @@ const LAT = {{ lat }}, LON = {{ lon }}, NAME = {{ name|tojson }};
 
 // ── Map ────────────────────────────────────────────────────────────────────────
 const map = L.map('map', {center: [LAT, LON], zoom: 7, zoomControl: true, attributionControl: true});
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  maxZoom: 19, subdomains: 'abcd', attribution: '© CARTO · Open-Meteo'
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 16, attribution: '© Esri · Open-Meteo'
+}).addTo(map);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 16,
 }).addTo(map);
 
 // Arrow marker
